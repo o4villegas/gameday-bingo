@@ -1,68 +1,160 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ===== Custom Theme (dark-only, mapped from our existing palette) ===== */
+
 :root {
-	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-	line-height: 1.5;
-	font-weight: 400;
+  --radius: 0.5rem;
 
-	color-scheme: light dark;
-	color: rgba(255, 255, 255, 0.87);
-	background-color: #242424;
+  /* Core backgrounds */
+  --background: #0a0a0f;
+  --foreground: #e8e4de;
+  --card: #0f0e14;
+  --card-foreground: #e8e4de;
+  --popover: #1a1520;
+  --popover-foreground: #e8e4de;
 
-	font-synthesis: none;
-	text-rendering: optimizeLegibility;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+  /* Primary (orange accent) */
+  --primary: #ff9500;
+  --primary-foreground: #000000;
+
+  /* Secondary */
+  --secondary: #1a1520;
+  --secondary-foreground: #e8e4de;
+
+  /* Muted */
+  --muted: #1a1520;
+  --muted-foreground: rgba(255, 255, 255, 0.4);
+
+  /* Accent */
+  --accent: rgba(255, 255, 255, 0.06);
+  --accent-foreground: #e8e4de;
+
+  /* Destructive (red) */
+  --destructive: #ff2d55;
+  --destructive-foreground: #ffffff;
+
+  /* Borders & inputs */
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(0, 0, 0, 0.3);
+  --ring: #ff9500;
+
+  /* App-specific colors (not shadcn standard) */
+  --accent-green: #30d158;
+  --accent-blue: #5ac8fa;
+
+  /* Tier colors */
+  --tier4-color: #ff2d55;
+  --tier4-bg: rgba(255, 45, 85, 0.08);
+  --tier4-border: rgba(255, 45, 85, 0.25);
+  --tier3-color: #ff9500;
+  --tier3-bg: rgba(255, 149, 0, 0.08);
+  --tier3-border: rgba(255, 149, 0, 0.25);
+  --tier2-color: #5ac8fa;
+  --tier2-bg: rgba(90, 200, 250, 0.08);
+  --tier2-border: rgba(90, 200, 250, 0.25);
+  --tier1-color: #30d158;
+  --tier1-bg: rgba(48, 209, 88, 0.08);
+  --tier1-border: rgba(48, 209, 88, 0.25);
+
+  /* Overlay utilities */
+  --overlay-light: rgba(255, 255, 255, 0.03);
+  --overlay-hover: rgba(255, 255, 255, 0.05);
+  --overlay-medium: rgba(255, 255, 255, 0.06);
+
+  /* Layout */
+  --tab-height: 3rem;
 }
 
-a {
-	font-weight: 500;
-	color: #646cff;
-	text-decoration: inherit;
+/* ===== Register as Tailwind theme tokens ===== */
+
+@theme inline {
+  --radius: 0.5rem;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* App-specific colors */
+  --color-accent-green: var(--accent-green);
+  --color-accent-blue: var(--accent-blue);
+  --color-tier-4: var(--tier4-color);
+  --color-tier-3: var(--tier3-color);
+  --color-tier-2: var(--tier2-color);
+  --color-tier-1: var(--tier1-color);
+
+  /* Custom overlay colors */
+  --color-overlay-light: var(--overlay-light);
+  --color-overlay-hover: var(--overlay-hover);
+  --color-overlay-medium: var(--overlay-medium);
+
+  /* Font families */
+  --font-heading: 'Oswald', sans-serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
 }
-a:hover {
-	color: #535bf2;
+
+/* ===== Base styles ===== */
+
+* {
+  border-color: var(--border);
 }
 
 body {
-	margin: 0;
-	display: flex;
-	place-items: center;
-	min-width: 320px;
-	min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1 {
-	font-size: 3.2em;
-	line-height: 1.1;
+input {
+  font-family: var(--font-body);
 }
 
-button {
-	border-radius: 8px;
-	border: 1px solid transparent;
-	padding: 0.6em 1.2em;
-	font-size: 1em;
-	font-weight: 500;
-	font-family: inherit;
-	background-color: #1a1a1a;
-	cursor: pointer;
-	transition: border-color 0.25s;
-}
-button:hover {
-	border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-	outline: 4px auto -webkit-focus-ring-color;
+/* Scrollbar - WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 4px;
 }
 
-@media (prefers-color-scheme: light) {
-	:root {
-		color: #213547;
-		background-color: #ffffff;
-	}
-	a:hover {
-		color: #747bff;
-	}
-	button {
-		background-color: #f9f9f9;
-	}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+/* Scrollbar - Firefox (#18) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Reduced motion (#2) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
