@@ -60,6 +60,16 @@ async function mockAPIs(
     return route.continue();
   });
 
+  await page.route("**/api/game-state", (route) =>
+    route.fulfill({ json: { locked: false } })
+  );
+
+  await page.route("**/api/lock", (route) => {
+    if (route.request().method() === "POST")
+      return route.fulfill({ json: { locked: false } });
+    return route.continue();
+  });
+
   await page.route("**/api/verify**", (route) => route.fulfill({ json: {} }));
 }
 
@@ -178,6 +188,9 @@ test.describe("Rapid Double Submit Prevention", () => {
       return route.continue();
     });
 
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) =>
       route.fulfill({ json: {} })
     );
@@ -243,6 +256,9 @@ test.describe("Rapid Double Submit Prevention", () => {
       return route.continue();
     });
 
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) =>
       route.fulfill({ json: {} })
     );
@@ -402,6 +418,9 @@ test.describe("Network Failure During Submission", () => {
       return route.continue();
     });
 
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) =>
       route.fulfill({ json: {} })
     );
@@ -411,8 +430,8 @@ test.describe("Network Failure During Submission", () => {
     // Fill form
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
     await page
-      .getByPlaceholder("e.g. Chiefs 27, Eagles 24")
-      .fill("Chiefs 28, Eagles 21");
+      .getByPlaceholder("e.g. Seahawks 27, Patriots 24")
+      .fill("Seahawks 28, Patriots 21");
     await selectTenEvents(page);
 
     // Submit
@@ -476,6 +495,9 @@ test.describe("Network Failure During Submission", () => {
       return route.continue();
     });
 
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) =>
       route.fulfill({ json: {} })
     );
@@ -554,6 +576,9 @@ test.describe("Rapid Admin Event Toggle", () => {
       return route.continue();
     });
 
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) =>
       route.fulfill({ json: {} })
     );

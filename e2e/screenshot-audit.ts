@@ -19,8 +19,8 @@ async function main() {
     if (route.request().method() === "GET") {
       return route.fulfill({
         json: [
-          { name: "Alex Johnson", picks: ["t4_overtime", "t2_safety", "t1_pick_six", "t1_blowout", "t3_blocked_punt"], tiebreaker: "Chiefs 28, Eagles 24", ts: 1000 },
-          { name: "Maria Gonzalez-Hernandez", picks: ["t4_overtime", "t1_pick_six", "t1_missed_fg", "t2_safety", "t3_blocked_punt"], tiebreaker: "Eagles 31, Chiefs 27", ts: 2000 },
+          { name: "Alex Johnson", picks: ["t4_overtime", "t2_safety", "t1_pick_six", "t1_blowout", "t3_blocked_punt"], tiebreaker: "Seahawks 28, Patriots 24", ts: 1000 },
+          { name: "Maria Gonzalez-Hernandez", picks: ["t4_overtime", "t1_pick_six", "t1_missed_fg", "t2_safety", "t3_blocked_punt"], tiebreaker: "Patriots 31, Seahawks 27", ts: 2000 },
           { name: "Bob", picks: ["t2_safety", "t1_blowout", "t1_missed_fg", "t2_blocked_fg", "t4_ejection"], tiebreaker: "", ts: 3000 },
         ],
       });
@@ -35,6 +35,8 @@ async function main() {
   await page.route("**/api/events/*", (route) => route.fulfill({ json: {} }));
   await page.route("**/api/players/*", (route) => route.fulfill({ status: 200, json: { success: true } }));
   await page.route("**/api/reset", (route) => route.fulfill({ status: 200, json: { success: true } }));
+  await page.route("**/api/game-state", (route) => route.fulfill({ json: { locked: false } }));
+  await page.route("**/api/verify**", (route) => route.fulfill({ json: {} }));
 
   // Clear state
   await page.goto(BASE);
@@ -47,7 +49,7 @@ async function main() {
 
   // 2. Picks tab - with name filled and some picks selected
   await page.getByPlaceholder("Enter your name").fill("TestPlayer");
-  await page.getByPlaceholder("e.g. Chiefs 27, Eagles 24").fill("Chiefs 31, Eagles 28");
+  await page.getByPlaceholder("e.g. Seahawks 27, Patriots 24").fill("Seahawks 31, Patriots 28");
   await page.getByText("Punt Return Touchdown").click();
   await page.getByText("Opening Kickoff Returned for TD").click();
   await page.getByText("Game Goes to Overtime").click();

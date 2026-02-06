@@ -104,6 +104,16 @@ async function mockAPIs(page: Page, options?: {
     return route.continue();
   });
 
+  await page.route("**/api/game-state", (route) =>
+    route.fulfill({ json: { locked: false } })
+  );
+
+  await page.route("**/api/lock", (route) => {
+    if (route.request().method() === "POST")
+      return route.fulfill({ json: { locked: false } });
+    return route.continue();
+  });
+
   await page.route("**/api/verify**", (route) => route.fulfill({ json: {} }));
 }
 
@@ -125,6 +135,9 @@ test.describe("Initial Load & Header", () => {
     );
     await page.route("**/api/players", (route) =>
       setTimeout(() => route.fulfill({ json: [] }), 2000)
+    );
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
     );
     await page.goto("/");
     await expect(page.getByText("LOADING...")).toBeVisible();
@@ -285,14 +298,14 @@ test.describe("Picks Tab - Form", () => {
     await mockAPIs(page);
     await freshPageOnPicks(page);
     await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
-    await expect(page.getByPlaceholder("e.g. Chiefs 27, Eagles 24")).toBeVisible();
+    await expect(page.getByPlaceholder("e.g. Seahawks 27, Patriots 24")).toBeVisible();
   });
 
   test("shows YOUR NAME and TIEBREAKER labels", async ({ page }) => {
     await mockAPIs(page);
     await freshPageOnPicks(page);
     await expect(page.getByText("YOUR NAME")).toBeVisible();
-    await expect(page.getByText("TIEBREAKER: PREDICT FINAL SCORE")).toBeVisible();
+    await expect(page.getByText("BONUS: PREDICT FINAL SCORE")).toBeVisible();
   });
 
   test("shows pick counter with SELECT 10 MORE initially", async ({ page }) => {
@@ -386,7 +399,7 @@ test.describe("Picks Tab - Form", () => {
 
     // Fill form
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
-    await page.getByPlaceholder("e.g. Chiefs 27, Eagles 24").fill("Chiefs 28, Eagles 21");
+    await page.getByPlaceholder("e.g. Seahawks 27, Patriots 24").fill("Seahawks 28, Patriots 21");
 
     // Select 10 events (periods start expanded)
     await selectTenEvents(page);
@@ -400,7 +413,25 @@ test.describe("Picks Tab - Form", () => {
   });
 
   test("after submission, picks tab shows locked screen", async ({ page }) => {
+    // Track submitted players so self-healing doesn't clear the lock
+    // (GET /api/players must return the player after POST succeeds)
+    const submittedPlayers: Array<{ name: string; picks: string[]; tiebreaker: string; ts: number }> = [];
+
     await mockAPIs(page);
+
+    // Override players route (LIFO — this handler takes precedence over mockAPIs)
+    await page.route("**/api/players", async (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({ json: submittedPlayers });
+      }
+      if (route.request().method() === "POST") {
+        const body = JSON.parse(route.request().postData() || "{}");
+        submittedPlayers.push({ ...body, ts: Date.now() });
+        return route.fulfill({ json: { success: true, player: { ...body, ts: Date.now() } } });
+      }
+      return route.continue();
+    });
+
     await freshPageOnPicks(page);
 
     // Fill & submit
@@ -816,6 +847,9 @@ test.describe("Visual & Interaction", () => {
         })), 2000)
       );
     });
+    await page.route("**/api/game-state", (route) =>
+      route.fulfill({ json: { locked: false } })
+    );
     await page.route("**/api/verify**", (route) => route.fulfill({ json: {} }));
 
     await freshPageOnPicks(page);
