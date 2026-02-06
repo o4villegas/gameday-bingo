@@ -10,7 +10,12 @@ const VALID_PERIODS: Period[] = ["Q1", "Q2", "Q3", "Q4", "FG"];
 const app = new Hono<{ Bindings: Env }>();
 
 app.post("/verify", adminAuth, async (c) => {
-  const body = await c.req.json<{ period?: string; manualText?: string }>();
+  let body: { period?: string; manualText?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
   const rawPeriod = body.period;
 
   if (!rawPeriod || !VALID_PERIODS.includes(rawPeriod as Period)) {

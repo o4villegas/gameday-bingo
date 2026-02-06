@@ -69,4 +69,5 @@ export interface VerificationState {
 export interface GameState {
   gameId: string;
   periodsVerified: Period[];
+  locked: boolean;
 }

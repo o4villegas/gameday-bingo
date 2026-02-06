@@ -120,3 +120,21 @@ export async function dismissVerification(
   if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to dismiss");
 }
+
+export async function fetchGameLockStatus(): Promise<{ locked: boolean }> {
+  const res = await fetch(`${API_BASE}/game-state`);
+  if (!res.ok) throw new Error("Failed to fetch game state");
+  return res.json();
+}
+
+export async function toggleGameLock(
+  adminCode: string,
+): Promise<{ locked: boolean }> {
+  const res = await fetch(`${API_BASE}/lock`, {
+    method: "POST",
+    headers: { "X-Admin-Code": adminCode },
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error("Failed to toggle lock");
+  return res.json();
+}

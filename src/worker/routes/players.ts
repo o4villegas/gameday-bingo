@@ -1,21 +1,27 @@
 import { Hono } from "hono";
 import { adminAuth } from "../middleware/adminAuth";
-import { getPlayers, setPlayers } from "../lib/kv";
-import { EVENTS, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH } from "../../shared/constants";
+import { getPlayer, addPlayer, removePlayer, listPlayers, getGameState } from "../lib/kv";
+import { EVENTS, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH, MAX_TIEBREAKER_LENGTH } from "../../shared/constants";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/players", async (c) => {
-  const players = await getPlayers(c.env.GAME_KV);
+  const players = await listPlayers(c.env.GAME_KV);
   return c.json(players);
 });
 
 app.post("/players", async (c) => {
-  const body = await c.req.json<{
-    name?: string;
-    picks?: string[];
-    tiebreaker?: string;
-  }>();
+  let body: { name?: string; picks?: string[]; tiebreaker?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const gameState = await getGameState(c.env.GAME_KV);
+  if (gameState.locked) {
+    return c.json({ error: "Submissions are closed" }, 403);
+  }
 
   const name = body.name?.trim();
   if (!name) {
@@ -54,33 +60,30 @@ app.post("/players", async (c) => {
     }
   }
 
-  const existing = await getPlayers(c.env.GAME_KV);
-  const duplicate = existing.some(
-    (p) => p.name.toLowerCase() === name.toLowerCase()
-  );
-  if (duplicate) {
+  const trimmedTiebreaker = body.tiebreaker?.trim() || "";
+  if (trimmedTiebreaker.length > MAX_TIEBREAKER_LENGTH) {
+    return c.json({ error: `Tiebreaker must be ${MAX_TIEBREAKER_LENGTH} characters or less` }, 400);
+  }
+
+  const existing = await getPlayer(c.env.GAME_KV, name);
+  if (existing) {
     return c.json({ error: "Name already taken" }, 409);
   }
 
   const player = {
     name,
     picks,
-    tiebreaker: body.tiebreaker?.trim() || "",
+    tiebreaker: trimmedTiebreaker,
     ts: Date.now(),
   };
 
-  existing.push(player);
-  await setPlayers(c.env.GAME_KV, existing);
+  await addPlayer(c.env.GAME_KV, player);
   return c.json({ success: true, player }, 201);
 });
 
 app.delete("/players/:name", adminAuth, async (c) => {
   const name = decodeURIComponent(c.req.param("name"));
-  const players = await getPlayers(c.env.GAME_KV);
-  const filtered = players.filter(
-    (p) => p.name.toLowerCase() !== name.toLowerCase()
-  );
-  await setPlayers(c.env.GAME_KV, filtered);
+  await removePlayer(c.env.GAME_KV, name);
   return c.json({ success: true });
 });
 

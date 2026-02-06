@@ -4,9 +4,10 @@ import type { GameEvent } from "../../shared/types";
 interface LiveEventRowProps {
   event: GameEvent;
   hit: boolean;
+  isPicked?: boolean;
 }
 
-export function LiveEventRow({ event, hit }: LiveEventRowProps) {
+export function LiveEventRow({ event, hit, isPicked = false }: LiveEventRowProps) {
   return (
     <div
       className={cn(
@@ -15,7 +16,9 @@ export function LiveEventRow({ event, hit }: LiveEventRowProps) {
         "border-b border-white/[0.03]",
         "transition-all duration-200 ease-in-out",
         "hover:bg-overlay-hover",
-        hit && "bg-accent-green/[0.08]"
+        hit && "bg-accent-green/[0.08]",
+        isPicked && !hit && "border-l-2 border-l-primary/40",
+        isPicked && hit && "border-l-2 border-l-accent-green"
       )}
     >
       <div
@@ -42,6 +45,16 @@ export function LiveEventRow({ event, hit }: LiveEventRowProps) {
       >
         {event.name}
       </div>
+      {isPicked && (
+        <div
+          className={cn(
+            "text-[0.5rem] font-heading tracking-[1px] shrink-0 ml-2",
+            hit ? "text-accent-green" : "text-primary/60"
+          )}
+        >
+          MY PICK
+        </div>
+      )}
     </div>
   );
 }

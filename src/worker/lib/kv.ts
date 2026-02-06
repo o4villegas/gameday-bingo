@@ -9,13 +9,41 @@ export async function setEvents(kv: KVNamespace, state: EventState): Promise<voi
   await kv.put("sb-events", JSON.stringify(state));
 }
 
-export async function getPlayers(kv: KVNamespace): Promise<Player[]> {
-  const raw = await kv.get("sb-players");
-  return raw ? JSON.parse(raw) : [];
+// --- Per-player KV key helpers (atomic read/write, no race conditions) ---
+
+const PLAYER_PREFIX = "sb-player:";
+
+function playerKey(name: string): string {
+  return `${PLAYER_PREFIX}${name.toLowerCase()}`;
 }
 
-export async function setPlayers(kv: KVNamespace, players: Player[]): Promise<void> {
-  await kv.put("sb-players", JSON.stringify(players));
+export async function getPlayer(kv: KVNamespace, name: string): Promise<Player | null> {
+  const raw = await kv.get(playerKey(name));
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function addPlayer(kv: KVNamespace, player: Player): Promise<void> {
+  await kv.put(playerKey(player.name), JSON.stringify(player));
+}
+
+export async function removePlayer(kv: KVNamespace, name: string): Promise<void> {
+  await kv.delete(playerKey(name));
+}
+
+export async function listPlayers(kv: KVNamespace): Promise<Player[]> {
+  const result = await kv.list({ prefix: PLAYER_PREFIX });
+  const players = await Promise.all(
+    result.keys.map(async (k) => {
+      const raw = await kv.get(k.name);
+      return raw ? (JSON.parse(raw) as Player) : null;
+    }),
+  );
+  return players.filter((p): p is Player => p !== null);
+}
+
+export async function clearPlayers(kv: KVNamespace): Promise<void> {
+  const result = await kv.list({ prefix: PLAYER_PREFIX });
+  await Promise.all(result.keys.map((k) => kv.delete(k.name)));
 }
 
 export async function getVerificationState(kv: KVNamespace): Promise<VerificationState> {
@@ -29,7 +57,11 @@ export async function setVerificationState(kv: KVNamespace, state: VerificationS
 
 export async function getGameState(kv: KVNamespace): Promise<GameState> {
   const raw = await kv.get("sb-game-state");
-  return raw ? JSON.parse(raw) : { gameId: "", periodsVerified: [] as Period[] };
+  if (!raw) return { gameId: "", periodsVerified: [] as Period[], locked: false };
+  const parsed = JSON.parse(raw) as GameState;
+  // Backwards-compat: existing KV data may not have `locked`
+  if (typeof parsed.locked !== "boolean") parsed.locked = false;
+  return parsed;
 }
 
 export async function setGameState(kv: KVNamespace, state: GameState): Promise<void> {

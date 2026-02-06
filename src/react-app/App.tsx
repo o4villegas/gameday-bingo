@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import type { TabId, Player, EventState, VerificationResult, Period } from "../shared/types";
-import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH, POLL_INTERVAL_MS } from "../shared/constants";
+import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH, MAX_TIEBREAKER_LENGTH, POLL_INTERVAL_MS } from "../shared/constants";
 import {
   fetchEvents,
   fetchPlayers,
@@ -12,6 +12,8 @@ import {
   triggerVerification as apiTriggerVerification,
   approveVerification as apiApproveVerification,
   dismissVerification as apiDismissVerification,
+  fetchGameLockStatus,
+  toggleGameLock,
 } from "./api/client";
 import { usePolling } from "./hooks/usePolling";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -19,10 +21,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { safeGetItem, safeSetItem, safeRemoveItem } from "./lib/safeLocalStorage";
 import { Header } from "./components/Header";
 import { PickCounter } from "./components/PickCounter";
 import { PeriodSection } from "./components/PeriodSection";
 import { LockedScreen } from "./components/LockedScreen";
+import { ClosedScreen } from "./components/ClosedScreen";
 import { LiveBoard } from "./components/LiveBoard";
 import { PrizesTab } from "./components/PrizesTab";
 import { AdminTab } from "./components/AdminTab";
@@ -42,10 +46,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useHashRoute(
-    localStorage.getItem("sb-submitted") === "true" ? "live" : "rules"
+    safeGetItem("sb-submitted") === "true" ? "live" : "rules"
   );
   const [submitted, setSubmitted] = useState(
-    () => localStorage.getItem("sb-submitted") === "true"
+    () => safeGetItem("sb-submitted") === "true"
   );
   const [playerName, setPlayerName] = useState("");
   const [tiebreaker, setTiebreaker] = useState("");
@@ -55,6 +59,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
+  const [gameLocked, setGameLocked] = useState(false);
 
   const hasLoadedRef = useRef(false);
 
@@ -65,6 +70,20 @@ function App() {
       setPlayers(pl);
       hasLoadedRef.current = true;
       setLoadError(false);
+
+      // Self-healing: clear submission lock if player no longer exists server-side
+      if (safeGetItem("sb-submitted") === "true") {
+        const savedName = safeGetItem("sb-submitted-name");
+        if (savedName && !pl.some((p) => p.name.toLowerCase() === savedName)) {
+          safeRemoveItem("sb-submitted");
+          safeRemoveItem("sb-submitted-name");
+          setSubmitted(false);
+        }
+      }
+
+      // Fetch lock status independently — failure doesn't block event/player updates
+      const gs = await fetchGameLockStatus().catch(() => null);
+      if (gs) setGameLocked(gs.locked);
     } catch {
       if (!hasLoadedRef.current) setLoadError(true);
     } finally {
@@ -76,7 +95,7 @@ function App() {
     loadData();
   }, [loadData]);
 
-  const shouldPoll = tab === "live" || tab === "admin" || tab === "prizes";
+  const shouldPoll = tab === "live" || tab === "admin" || tab === "prizes" || tab === "picks";
   usePolling(loadData, POLL_INTERVAL_MS, shouldPoll);
 
   const handleTabChange = (value: string) => {
@@ -114,7 +133,8 @@ function App() {
         picks: selectedPicks,
         tiebreaker: tiebreaker.trim(),
       });
-      localStorage.setItem("sb-submitted", "true");
+      safeSetItem("sb-submitted", "true");
+      safeSetItem("sb-submitted-name", playerName.trim().toLowerCase());
       setSubmitted(true);
       toast.success("Picks locked in!");
       setTab("live");
@@ -151,12 +171,23 @@ function App() {
     }
   };
 
+  const handleToggleLock = async () => {
+    try {
+      const result = await toggleGameLock(adminCode);
+      setGameLocked(result.locked);
+      toast.success(result.locked ? "Submissions locked!" : "Submissions unlocked!");
+    } catch {
+      toast.error("Error toggling submission lock");
+    }
+  };
+
   const handleReset = async () => {
     try {
       await apiResetGame(adminCode);
       setEventState({});
       setPlayers([]);
       setVerificationResult(null);
+      setGameLocked(false);
       toast.success("Game reset!");
     } catch {
       toast.error("Error resetting game");
@@ -209,6 +240,12 @@ function App() {
   };
 
   const totalHits = Object.values(eventState).filter(Boolean).length;
+
+  // Derive current user's picks from players array + localStorage name
+  const currentUserName = safeGetItem("sb-submitted-name");
+  const currentUserPicks = currentUserName
+    ? (players.find((p) => p.name.toLowerCase() === currentUserName)?.picks ?? [])
+    : [];
 
   const periodGroups = PERIODS_ORDER.map((period) => ({
     period,
@@ -273,6 +310,8 @@ function App() {
           >
             {submitted ? (
               <LockedScreen onGoToLive={() => setTab("live")} />
+            ) : gameLocked ? (
+              <ClosedScreen />
             ) : (
               <>
                 {/* Name + Tiebreaker Form */}
@@ -294,12 +333,16 @@ function App() {
                       </div>
                     )}
                     <label className="block font-heading text-[0.6875rem] tracking-[2px] text-muted-foreground mb-1.5 mt-3">
-                      TIEBREAKER: PREDICT FINAL SCORE
+                      BONUS: PREDICT FINAL SCORE
                     </label>
+                    <div className="text-[0.5625rem] text-white/30 mb-1.5 font-heading tracking-[1px]">
+                      for fun — ties broken by earliest submission
+                    </div>
                     <Input
                       value={tiebreaker}
                       onChange={(e) => setTiebreaker(e.target.value)}
-                      placeholder="e.g. Chiefs 27, Eagles 24"
+                      placeholder="e.g. Seahawks 27, Patriots 24"
+                      maxLength={MAX_TIEBREAKER_LENGTH}
                       className="bg-input border-white/10 text-white"
                     />
                   </div>
@@ -343,7 +386,7 @@ function App() {
             value="live"
             className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
           >
-            <LiveBoard eventState={eventState} totalHits={totalHits} />
+            <LiveBoard eventState={eventState} totalHits={totalHits} userPicks={currentUserPicks} />
           </TabsContent>
 
           <TabsContent
@@ -361,10 +404,12 @@ function App() {
               adminAuth={adminAuth}
               eventState={eventState}
               players={players}
+              gameLocked={gameLocked}
               onAdminAuth={handleAdminAuth}
               onToggleEvent={handleToggleEvent}
               onRemovePlayer={handleRemovePlayer}
               onReset={handleReset}
+              onToggleLock={handleToggleLock}
               verificationResult={verificationResult}
               verificationLoading={verificationLoading}
               onVerifyPeriod={handleVerifyPeriod}

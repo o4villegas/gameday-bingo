@@ -5,8 +5,9 @@ import type { GameEvent, PeriodConfig, Period } from "./types";
 export const MAX_PICKS = 10;
 export const MAX_PICKS_PER_PERIOD = 2;
 export const MAX_NAME_LENGTH = 40;
+export const MAX_TIEBREAKER_LENGTH = 100;
 export const POLL_INTERVAL_MS = 8000;
-export const ESPN_GAME_ID = "401671889"; // Super Bowl LIX (test) — update for Super Bowl LX before game day
+export const ESPN_GAME_ID = "401772988"; // Super Bowl LX — Seahawks vs Patriots, Feb 8 2026
 
 // --- Period ordering and config ---
 

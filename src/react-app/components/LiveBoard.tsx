@@ -5,9 +5,12 @@ import { LiveEventRow } from "./LiveEventRow";
 interface LiveBoardProps {
   eventState: EventState;
   totalHits: number;
+  userPicks?: string[];
 }
 
-export function LiveBoard({ eventState, totalHits }: LiveBoardProps) {
+export function LiveBoard({ eventState, totalHits, userPicks = [] }: LiveBoardProps) {
+  const userHits = userPicks.filter((id) => eventState[id]).length;
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
       <div className="px-4 pt-3.5 pb-1 text-center">
@@ -17,6 +20,11 @@ export function LiveBoard({ eventState, totalHits }: LiveBoardProps) {
         {totalHits > 0 && (
           <div className="font-heading text-lg font-bold text-accent-green mt-1.5">
             {totalHits} EVENT{totalHits !== 1 ? "S" : ""} HIT
+          </div>
+        )}
+        {userPicks.length > 0 && (
+          <div className="font-heading text-sm text-primary mt-1">
+            YOUR PICKS: {userHits}/{userPicks.length} HIT
           </div>
         )}
       </div>
@@ -41,7 +49,12 @@ export function LiveBoard({ eventState, totalHits }: LiveBoardProps) {
                 )}
               </div>
               {events.map((ev) => (
-                <LiveEventRow key={ev.id} event={ev} hit={!!eventState[ev.id]} />
+                <LiveEventRow
+                  key={ev.id}
+                  event={ev}
+                  hit={!!eventState[ev.id]}
+                  isPicked={userPicks.includes(ev.id)}
+                />
               ))}
             </div>
           );

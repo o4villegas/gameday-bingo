@@ -14,10 +14,12 @@ interface AdminTabProps {
   adminAuth: boolean;
   eventState: EventState;
   players: Player[];
+  gameLocked: boolean;
   onAdminAuth: (code: string) => void;
   onToggleEvent: (id: string) => void;
   onRemovePlayer: (name: string) => void;
   onReset: () => void;
+  onToggleLock: () => void;
   verificationResult: VerificationResult | null;
   verificationLoading: boolean;
   onVerifyPeriod: (period: Period, manualText?: string) => void;
@@ -29,10 +31,12 @@ export function AdminTab({
   adminAuth,
   eventState,
   players,
+  gameLocked,
   onAdminAuth,
   onToggleEvent,
   onRemovePlayer,
   onReset,
+  onToggleLock,
   verificationResult,
   verificationLoading,
   onVerifyPeriod,
@@ -83,6 +87,26 @@ export function AdminTab({
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
+      {/* Submission Lock Toggle */}
+      <div className="mx-4 mt-4 mb-3 bg-overlay-light rounded-lg border border-border p-4 flex items-center justify-between">
+        <div>
+          <div className="font-heading text-xs tracking-[3px] text-primary">
+            {gameLocked ? "\u{1F512}" : "\u{1F513}"} SUBMISSIONS
+          </div>
+          <div className="text-[0.6875rem] text-white/30 mt-1">
+            {gameLocked ? "Picks are currently locked. No new submissions." : "Picks are open. Players can submit."}
+          </div>
+        </div>
+        <Button
+          onClick={onToggleLock}
+          variant={gameLocked ? "default" : "destructive"}
+          size="sm"
+          className="font-heading tracking-[2px] shrink-0 ml-4"
+        >
+          {gameLocked ? "UNLOCK" : "LOCK"}
+        </Button>
+      </div>
+
       {/* Event Controls Header */}
       <div className="flex justify-between items-center px-4 pt-4 pb-1">
         <div className="font-heading text-xs tracking-[3px] text-primary">
