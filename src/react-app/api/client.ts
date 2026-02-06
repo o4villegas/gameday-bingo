@@ -1,4 +1,4 @@
-import type { EventState, Player } from "../../shared/types";
+import type { EventState, Player, VerificationResult, VerificationState, Period } from "../../shared/types";
 
 const API_BASE = "/api";
 
@@ -66,4 +66,57 @@ export async function resetGame(adminCode: string): Promise<void> {
   });
   if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to reset game");
+}
+
+export async function triggerVerification(
+  period: Period,
+  adminCode: string,
+  manualText?: string,
+): Promise<VerificationResult> {
+  const res = await fetch(`${API_BASE}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-Code": adminCode,
+    },
+    body: JSON.stringify({ period, manualText }),
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  const json = (await res.json()) as VerificationResult & { error?: string };
+  if (!res.ok) throw new Error((json as { error?: string }).error || "Verification failed");
+  return json;
+}
+
+export async function getVerificationStatus(
+  adminCode: string,
+): Promise<VerificationState> {
+  const res = await fetch(`${API_BASE}/verify/status`, {
+    headers: { "X-Admin-Code": adminCode },
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error("Failed to get status");
+  return res.json();
+}
+
+export async function approveVerification(
+  adminCode: string,
+): Promise<EventState> {
+  const res = await fetch(`${API_BASE}/verify/approve`, {
+    method: "POST",
+    headers: { "X-Admin-Code": adminCode },
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error("Failed to approve");
+  return res.json();
+}
+
+export async function dismissVerification(
+  adminCode: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/verify/dismiss`, {
+    method: "POST",
+    headers: { "X-Admin-Code": adminCode },
+  });
+  if (res.status === 401) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error("Failed to dismiss");
 }

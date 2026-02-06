@@ -1,23 +1,26 @@
 import { useState } from "react";
-import type { GameEvent, TierConfig } from "../../shared/types";
-import { MAX_PICKS } from "../../shared/constants";
+import type { GameEvent, PeriodConfig, Period } from "../../shared/types";
+import { MAX_PICKS_PER_PERIOD } from "../../shared/constants";
 import { cn } from "@/lib/utils";
 import { EventRow } from "./EventRow";
 
-interface TierSectionProps {
-  tier: number;
-  config: TierConfig;
+interface PeriodSectionProps {
+  period: Period;
+  config: PeriodConfig;
   events: GameEvent[];
   selectedPicks: string[];
   onTogglePick: (id: string) => void;
 }
 
-export function TierSection({ tier, config, events, selectedPicks, onTogglePick }: TierSectionProps) {
+export function PeriodSection({ period, config, events, selectedPicks, onTogglePick }: PeriodSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const pickedInTier = selectedPicks.filter((p) => events.some((e) => e.id === p)).length;
+
+  // Count how many picks from this period are selected
+  const eventIds = new Set(events.map((e) => e.id));
+  const picksInPeriod = selectedPicks.filter((p) => eventIds.has(p)).length;
 
   return (
-    <div className="mx-4 my-2" key={tier}>
+    <div className="mx-4 my-2" key={period}>
       <button
         type="button"
         className="flex w-full items-center justify-between rounded-lg border px-3.5 py-3 select-none hover:brightness-110 transition-[filter] duration-150 min-h-[2.75rem]"
@@ -30,16 +33,16 @@ export function TierSection({ tier, config, events, selectedPicks, onTogglePick 
             {config.emoji} {config.label}
           </div>
           <div className="text-[0.6875rem] text-muted-foreground mt-0.5">
-            {config.subtitle} &mdash; <span style={{ color: config.color }}>{config.prize}</span>
+            {config.subtitle}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {pickedInTier > 0 && (
+          {picksInPeriod > 0 && (
             <span
               className="rounded-[10px] px-2 py-0.5 text-[0.6875rem] font-heading font-bold text-black"
               style={{ background: config.color }}
             >
-              {pickedInTier}
+              {picksInPeriod}
             </span>
           )}
           <span
@@ -57,15 +60,15 @@ export function TierSection({ tier, config, events, selectedPicks, onTogglePick 
         <div className="mt-1">
           {events.map((ev) => {
             const picked = selectedPicks.includes(ev.id);
-            const disabled = !picked && selectedPicks.length >= MAX_PICKS;
+            const disabled = !picked && picksInPeriod >= MAX_PICKS_PER_PERIOD;
             return (
               <EventRow
                 key={ev.id}
                 event={ev}
                 picked={picked}
                 disabled={disabled}
-                tierColor={config.color}
-                tierBg={config.bg}
+                periodColor={config.color}
+                periodBg={config.bg}
                 onToggle={() => onTogglePick(ev.id)}
               />
             );

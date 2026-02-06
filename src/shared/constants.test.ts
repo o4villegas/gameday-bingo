@@ -1,25 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { EVENTS, TIER_CONFIG, MAX_PICKS, TIERS_ORDER } from "./constants";
+import { EVENTS, PERIOD_CONFIG, MAX_PICKS, MAX_PICKS_PER_PERIOD, PERIODS_ORDER } from "./constants";
+import type { Period } from "./types";
 
 describe("EVENTS", () => {
-  it("has exactly 30 events total", () => {
-    expect(EVENTS).toHaveLength(30);
+  it("has exactly 50 events total", () => {
+    expect(EVENTS).toHaveLength(50);
   });
 
-  it("has 7 Tier 4 events", () => {
-    expect(EVENTS.filter((e) => e.tier === 4)).toHaveLength(7);
+  it("has 10 Q1 events", () => {
+    expect(EVENTS.filter((e) => e.period === "Q1")).toHaveLength(10);
   });
 
-  it("has 2 Tier 3 events", () => {
-    expect(EVENTS.filter((e) => e.tier === 3)).toHaveLength(2);
+  it("has 10 Q2 events", () => {
+    expect(EVENTS.filter((e) => e.period === "Q2")).toHaveLength(10);
   });
 
-  it("has 11 Tier 2 events", () => {
-    expect(EVENTS.filter((e) => e.tier === 2)).toHaveLength(11);
+  it("has 10 Q3 events", () => {
+    expect(EVENTS.filter((e) => e.period === "Q3")).toHaveLength(10);
   });
 
-  it("has 10 Tier 1 events", () => {
-    expect(EVENTS.filter((e) => e.tier === 1)).toHaveLength(10);
+  it("has 10 Q4 events", () => {
+    expect(EVENTS.filter((e) => e.period === "Q4")).toHaveLength(10);
+  });
+
+  it("has 10 FG events", () => {
+    expect(EVENTS.filter((e) => e.period === "FG")).toHaveLength(10);
   });
 
   it("has unique IDs for every event", () => {
@@ -33,63 +38,61 @@ describe("EVENTS", () => {
     }
   });
 
-  it("all events have valid tier values (1-4)", () => {
+  it("all events have valid period values", () => {
+    const validPeriods: Period[] = ["Q1", "Q2", "Q3", "Q4", "FG"];
     for (const event of EVENTS) {
-      expect([1, 2, 3, 4]).toContain(event.tier);
+      expect(validPeriods).toContain(event.period);
     }
   });
 
-  it("all event IDs follow the tN_ prefix convention", () => {
+  it("all event IDs follow the period prefix convention", () => {
+    const prefixMap: Record<Period, string> = {
+      Q1: "q1_",
+      Q2: "q2_",
+      Q3: "q3_",
+      Q4: "q4_",
+      FG: "fg_",
+    };
     for (const event of EVENTS) {
-      expect(event.id).toMatch(/^t[1-4]_/);
-      expect(event.id.startsWith(`t${event.tier}_`)).toBe(true);
+      expect(event.id.startsWith(prefixMap[event.period])).toBe(true);
     }
   });
 });
 
-describe("TIER_CONFIG", () => {
-  it("has configuration for all 4 tiers", () => {
-    for (const tier of [1, 2, 3, 4]) {
-      expect(TIER_CONFIG[tier]).toBeDefined();
+describe("PERIOD_CONFIG", () => {
+  it("has configuration for all 5 periods", () => {
+    for (const period of ["Q1", "Q2", "Q3", "Q4", "FG"] as Period[]) {
+      expect(PERIOD_CONFIG[period]).toBeDefined();
     }
   });
 
-  it("each tier has all required fields", () => {
-    for (const tier of [1, 2, 3, 4]) {
-      const config = TIER_CONFIG[tier];
+  it("each period has all required fields", () => {
+    for (const period of ["Q1", "Q2", "Q3", "Q4", "FG"] as Period[]) {
+      const config = PERIOD_CONFIG[period];
       expect(config.label).toBeTruthy();
       expect(config.subtitle).toBeTruthy();
       expect(config.color).toMatch(/^#/);
       expect(config.bg).toMatch(/^rgba/);
       expect(config.border).toMatch(/^rgba/);
-      expect(config.prize).toBeTruthy();
       expect(config.emoji).toBeTruthy();
     }
-  });
-
-  it("tier 4 prize is 50% OFF TAB", () => {
-    expect(TIER_CONFIG[4].prize).toBe("50% OFF TAB");
-  });
-
-  it("tier 3 prize is 20% OFF TAB", () => {
-    expect(TIER_CONFIG[3].prize).toBe("20% OFF TAB");
-  });
-
-  it("tier 2 prize is FREE YCI SHELL", () => {
-    expect(TIER_CONFIG[2].prize).toBe("FREE YCI SHELL");
-  });
-
-  it("tier 1 prize is $3 YCI SHELL", () => {
-    expect(TIER_CONFIG[1].prize).toBe("$3 YCI SHELL");
   });
 });
 
 describe("Game constants", () => {
-  it("MAX_PICKS is 5", () => {
-    expect(MAX_PICKS).toBe(5);
+  it("MAX_PICKS is 10", () => {
+    expect(MAX_PICKS).toBe(10);
   });
 
-  it("TIERS_ORDER is [4, 3, 2, 1] (descending by rarity)", () => {
-    expect([...TIERS_ORDER]).toEqual([4, 3, 2, 1]);
+  it("MAX_PICKS_PER_PERIOD is 2", () => {
+    expect(MAX_PICKS_PER_PERIOD).toBe(2);
+  });
+
+  it("PERIODS_ORDER is [Q1, Q2, Q3, Q4, FG]", () => {
+    expect([...PERIODS_ORDER]).toEqual(["Q1", "Q2", "Q3", "Q4", "FG"]);
+  });
+
+  it("MAX_PICKS equals MAX_PICKS_PER_PERIOD * number of periods", () => {
+    expect(MAX_PICKS).toBe(MAX_PICKS_PER_PERIOD * PERIODS_ORDER.length);
   });
 });

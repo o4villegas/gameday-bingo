@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { TabId } from "../../shared/types";
 
-const VALID_TABS: TabId[] = ["picks", "live", "prizes", "admin"];
+const VALID_TABS: TabId[] = ["rules", "picks", "live", "prizes", "admin"];
 
 function isValidTab(value: string): value is TabId {
   return VALID_TABS.includes(value as TabId);

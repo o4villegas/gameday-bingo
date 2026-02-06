@@ -1,20 +1,27 @@
+// --- Period / Event types ---
+
+export type Period = "Q1" | "Q2" | "Q3" | "Q4" | "FG";
+
 export interface GameEvent {
   id: string;
   name: string;
-  tier: 1 | 2 | 3 | 4;
+  period: Period;
 }
 
-export interface TierConfig {
+export interface PeriodConfig {
   label: string;
   subtitle: string;
   color: string;
   bg: string;
   border: string;
-  prize: string;
   emoji: string;
 }
 
+// --- Game state ---
+
 export type EventState = Record<string, boolean>;
+
+// --- Player types ---
 
 export interface Player {
   name: string;
@@ -23,12 +30,43 @@ export interface Player {
   ts: number;
 }
 
-export interface PlayerWithPrizes extends Player {
+export interface PlayerWithScore extends Player {
   correctCount: number;
-  prizes: string[];
+  quarterShells: number;
+  rank: number | null;
   tabDiscount: number;
-  freeShells: number;
-  shells3: number;
+  prizes: string[];
 }
 
-export type TabId = "picks" | "live" | "prizes" | "admin";
+// --- Tab routing ---
+
+export type TabId = "rules" | "picks" | "live" | "prizes" | "admin";
+
+// --- AI Verification types ---
+
+export interface EventVerification {
+  eventId: string;
+  eventName: string;
+  occurred: boolean;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+}
+
+export interface VerificationResult {
+  period: Period;
+  timestamp: number;
+  events: EventVerification[];
+  summary: string;
+  status: "completed" | "error";
+  error?: string;
+}
+
+export interface VerificationState {
+  pendingApproval: VerificationResult | null;
+  appliedResults: VerificationResult[];
+}
+
+export interface GameState {
+  gameId: string;
+  periodsVerified: Period[];
+}

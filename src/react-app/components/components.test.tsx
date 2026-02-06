@@ -9,7 +9,7 @@ import { PrizesTab } from "./PrizesTab";
 import { PlayerCard } from "./PlayerCard";
 import { AdminEventRow } from "./AdminEventRow";
 import { LockedScreen } from "./LockedScreen";
-import type { GameEvent, PlayerWithPrizes } from "../../shared/types";
+import type { GameEvent, PlayerWithScore } from "../../shared/types";
 
 // ===== Header =====
 describe("Header", () => {
@@ -35,54 +35,67 @@ describe("Header", () => {
 // ===== PickCounter =====
 describe("PickCounter", () => {
   it("shows SELECT X MORE when not full", () => {
-    render(<PickCounter selectedCount={2} />);
-    expect(screen.getByText("SELECT 3 MORE")).toBeInTheDocument();
-    expect(screen.getByText("2/5")).toBeInTheDocument();
+    render(<PickCounter selectedPicks={["q1_opening_kick_td", "q2_pick_six"]} />);
+    expect(screen.getByText("SELECT 8 MORE")).toBeInTheDocument();
+    expect(screen.getByText("2/10")).toBeInTheDocument();
   });
 
   it("shows READY TO SUBMIT when full", () => {
-    render(<PickCounter selectedCount={5} />);
+    const picks = [
+      "q1_opening_kick_td", "q1_safety_first_play",
+      "q2_pick_six", "q2_tied_halftime",
+      "q3_first_drive_td", "q3_lead_change",
+      "q4_2pt_attempted", "q4_overtime",
+      "fg_gatorade_orange", "fg_margin_3"
+    ];
+    render(<PickCounter selectedPicks={picks} />);
     expect(screen.getByText(/READY TO SUBMIT/)).toBeInTheDocument();
-    expect(screen.getByText("5/5")).toBeInTheDocument();
+    expect(screen.getByText("10/10")).toBeInTheDocument();
+  });
+
+  it("shows per-period progress badges", () => {
+    render(<PickCounter selectedPicks={["q1_opening_kick_td", "q1_safety_first_play"]} />);
+    expect(screen.getByText("Q1")).toBeInTheDocument();
+    expect(screen.getByText("2/2")).toBeInTheDocument();
   });
 });
 
 // ===== EventRow =====
 describe("EventRow", () => {
-  const event: GameEvent = { id: "t1_pick_six", name: "Pick-Six", tier: 1 };
+  const event: GameEvent = { id: "q1_opening_kick_td", name: "Opening Kickoff Returned for TD", period: "Q1" };
 
   it("renders event name", () => {
-    render(<EventRow event={event} picked={false} disabled={false} tierColor="#30d158" tierBg="rgba(48,209,88,0.08)" onToggle={() => {}} />);
-    expect(screen.getByText("Pick-Six")).toBeInTheDocument();
+    render(<EventRow event={event} picked={false} disabled={false} periodColor="#ff2d55" periodBg="rgba(255,45,85,0.08)" onToggle={() => {}} />);
+    expect(screen.getByText("Opening Kickoff Returned for TD")).toBeInTheDocument();
   });
 
   it("shows checkmark when picked", () => {
-    render(<EventRow event={event} picked={true} disabled={false} tierColor="#30d158" tierBg="rgba(48,209,88,0.08)" onToggle={() => {}} />);
+    render(<EventRow event={event} picked={true} disabled={false} periodColor="#ff2d55" periodBg="rgba(255,45,85,0.08)" onToggle={() => {}} />);
     expect(screen.getByText("\u2713")).toBeInTheDocument();
   });
 
   it("calls onToggle when clicked", () => {
     const handler = vi.fn();
-    render(<EventRow event={event} picked={false} disabled={false} tierColor="#30d158" tierBg="rgba(48,209,88,0.08)" onToggle={handler} />);
-    fireEvent.click(screen.getByText("Pick-Six"));
+    render(<EventRow event={event} picked={false} disabled={false} periodColor="#ff2d55" periodBg="rgba(255,45,85,0.08)" onToggle={handler} />);
+    fireEvent.click(screen.getByText("Opening Kickoff Returned for TD"));
     expect(handler).toHaveBeenCalled();
   });
 
   it("does not call onToggle when disabled", () => {
     const handler = vi.fn();
-    render(<EventRow event={event} picked={false} disabled={true} tierColor="#30d158" tierBg="rgba(48,209,88,0.08)" onToggle={handler} />);
-    fireEvent.click(screen.getByText("Pick-Six"));
+    render(<EventRow event={event} picked={false} disabled={true} periodColor="#ff2d55" periodBg="rgba(255,45,85,0.08)" onToggle={handler} />);
+    fireEvent.click(screen.getByText("Opening Kickoff Returned for TD"));
     expect(handler).not.toHaveBeenCalled();
   });
 });
 
 // ===== LiveEventRow =====
 describe("LiveEventRow", () => {
-  const event: GameEvent = { id: "t2_safety", name: "Safety Scored", tier: 2 };
+  const event: GameEvent = { id: "q2_pick_six", name: "Pick-Six Thrown in Q2", period: "Q2" };
 
   it("renders event name", () => {
     render(<LiveEventRow event={event} hit={false} />);
-    expect(screen.getByText("Safety Scored")).toBeInTheDocument();
+    expect(screen.getByText("Pick-Six Thrown in Q2")).toBeInTheDocument();
   });
 
   it("shows dot indicator when not hit", () => {
@@ -98,14 +111,14 @@ describe("LiveEventRow", () => {
 
 // ===== LiveBoard =====
 describe("LiveBoard", () => {
-  it("renders all 30 events", () => {
+  it("renders all 50 events", () => {
     render(<LiveBoard eventState={{}} totalHits={0} />);
-    expect(screen.getByText("Punt Return Touchdown")).toBeInTheDocument();
-    expect(screen.getByText("Missed Field Goal (Any)")).toBeInTheDocument();
+    expect(screen.getByText("Opening Kickoff Returned for TD")).toBeInTheDocument();
+    expect(screen.getByText("Gatorade Bath Color Is ORANGE")).toBeInTheDocument();
   });
 
   it("shows hit count when events are hit", () => {
-    render(<LiveBoard eventState={{ t4_overtime: true, t1_pick_six: true }} totalHits={2} />);
+    render(<LiveBoard eventState={{ q4_overtime: true, q1_opening_kick_td: true }} totalHits={2} />);
     expect(screen.getByText("2 EVENTS HIT")).toBeInTheDocument();
   });
 
@@ -117,37 +130,49 @@ describe("LiveBoard", () => {
 
 // ===== PlayerCard =====
 describe("PlayerCard", () => {
-  const player: PlayerWithPrizes = {
+  const player: PlayerWithScore = {
     name: "Alice",
-    picks: ["t4_overtime", "t2_safety", "t1_pick_six", "t1_blowout", "t3_blocked_punt"],
-    tiebreaker: "Chiefs 28",
+    picks: [
+      "q1_opening_kick_td", "q1_safety_first_play",
+      "q2_pick_six", "q2_tied_halftime",
+      "q3_first_drive_td", "q3_lead_change",
+      "q4_2pt_attempted", "q4_overtime",
+      "fg_gatorade_orange", "fg_margin_3"
+    ],
+    tiebreaker: "Chiefs 28, Eagles 24",
     ts: 1000,
-    correctCount: 2,
-    prizes: ["50% off tab", "1 free YCI shell"],
-    tabDiscount: 50,
-    freeShells: 1,
-    shells3: 0,
+    correctCount: 3,
+    quarterShells: 2,
+    rank: 1,
+    tabDiscount: 20,
+    prizes: ["2× $3 YCI shells", "20% off tab (1st place)"],
   };
 
   it("renders player name and score", () => {
-    render(<PlayerCard player={player} rank={0} eventState={{ t4_overtime: true, t2_safety: true }} />);
+    render(<PlayerCard player={player} eventState={{ q1_opening_kick_td: true, q2_pick_six: true, q4_overtime: true }} />);
     expect(screen.getByText(/Alice/)).toBeInTheDocument();
-    expect(screen.getByText("2/5")).toBeInTheDocument();
+    expect(screen.getByText("3/10")).toBeInTheDocument();
   });
 
-  it("shows crown for rank 0 with hits", () => {
-    render(<PlayerCard player={player} rank={0} eventState={{ t4_overtime: true }} />);
-    expect(screen.getByText(/\u{1F451}/u)).toBeInTheDocument();
+  it("shows rank badge for top 3", () => {
+    render(<PlayerCard player={player} eventState={{}} />);
+    expect(screen.getByText(/1ST/)).toBeInTheDocument();
+    expect(screen.getByText(/🥇/)).toBeInTheDocument();
+  });
+
+  it("shows quarter shells indicator", () => {
+    render(<PlayerCard player={player} eventState={{}} />);
+    expect(screen.getByText(/2\/4 QUARTER SHELLS/)).toBeInTheDocument();
   });
 
   it("shows prizes", () => {
-    render(<PlayerCard player={player} rank={0} eventState={{}} />);
-    expect(screen.getByText(/50% off tab \+ 1 free YCI shell/)).toBeInTheDocument();
+    render(<PlayerCard player={player} eventState={{}} />);
+    expect(screen.getByText(/2× \$3 YCI shells \+ 20% off tab \(1st place\)/)).toBeInTheDocument();
   });
 
   it("shows tiebreaker", () => {
-    render(<PlayerCard player={player} rank={0} eventState={{}} />);
-    expect(screen.getByText("TIEBREAKER: Chiefs 28")).toBeInTheDocument();
+    render(<PlayerCard player={player} eventState={{}} />);
+    expect(screen.getByText("TIEBREAKER: Chiefs 28, Eagles 24")).toBeInTheDocument();
   });
 });
 
@@ -158,19 +183,41 @@ describe("PrizesTab", () => {
     expect(screen.getByText("No players yet. Be the first!")).toBeInTheDocument();
   });
 
-  it("renders prize tier grid", () => {
+  it("renders prize explanation sections", () => {
     render(<PrizesTab players={[]} eventState={{}} />);
     expect(screen.getByText("HOW PRIZES WORK")).toBeInTheDocument();
-    expect(screen.getByText("50% OFF TAB")).toBeInTheDocument();
-    expect(screen.getByText("FREE YCI SHELL")).toBeInTheDocument();
+    expect(screen.getByText(/IN-GAME PRIZES/)).toBeInTheDocument();
+    expect(screen.getByText(/FINAL PRIZES/)).toBeInTheDocument();
   });
 
   it("renders leaderboard sorted by correct count", () => {
     const players = [
-      { name: "Bob", picks: ["t4_overtime", "t2_safety", "t1_pick_six", "t1_blowout", "t3_blocked_punt"], tiebreaker: "", ts: 1000 },
-      { name: "Alice", picks: ["t4_overtime", "t2_safety", "t1_pick_six", "t1_blowout", "t3_blocked_punt"], tiebreaker: "", ts: 2000 },
+      {
+        name: "Bob",
+        picks: [
+          "q1_opening_kick_td", "q1_safety_first_play",
+          "q2_pick_six", "q2_tied_halftime",
+          "q3_first_drive_td", "q3_lead_change",
+          "q4_2pt_attempted", "q4_overtime",
+          "fg_gatorade_orange", "fg_margin_3"
+        ],
+        tiebreaker: "",
+        ts: 1000
+      },
+      {
+        name: "Alice",
+        picks: [
+          "q1_opening_kick_td", "q1_safety_first_play",
+          "q2_pick_six", "q2_tied_halftime",
+          "q3_first_drive_td", "q3_lead_change",
+          "q4_2pt_attempted", "q4_overtime",
+          "fg_gatorade_orange", "fg_margin_3"
+        ],
+        tiebreaker: "",
+        ts: 2000
+      },
     ];
-    const eventState = { t4_overtime: true, t2_safety: true };
+    const eventState = { q1_opening_kick_td: true, q2_pick_six: true };
 
     render(<PrizesTab players={players} eventState={eventState} />);
 
@@ -182,7 +229,7 @@ describe("PrizesTab", () => {
 
 // ===== AdminEventRow =====
 describe("AdminEventRow", () => {
-  const event: GameEvent = { id: "t4_overtime", name: "Game Goes to Overtime", tier: 4 };
+  const event: GameEvent = { id: "q4_overtime", name: "Game Goes to Overtime", period: "Q4" };
 
   it("renders event name", () => {
     render(<AdminEventRow event={event} hit={false} onToggle={() => {}} />);

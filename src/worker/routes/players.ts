@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { adminAuth } from "../middleware/adminAuth";
 import { getPlayers, setPlayers } from "../lib/kv";
-import { EVENTS, MAX_PICKS, MAX_NAME_LENGTH } from "../../shared/constants";
+import { EVENTS, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH } from "../../shared/constants";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -31,10 +31,26 @@ app.post("/players", async (c) => {
     return c.json({ error: `Exactly ${MAX_PICKS} picks required` }, 400);
   }
 
-  const validIds = new Set(EVENTS.map((e) => e.id));
+  if (new Set(picks).size !== picks.length) {
+    return c.json({ error: "Duplicate picks not allowed" }, 400);
+  }
+
+  const eventMap = new Map(EVENTS.map((e) => [e.id, e]));
   for (const pick of picks) {
-    if (!validIds.has(pick)) {
+    if (!eventMap.has(pick)) {
       return c.json({ error: `Invalid pick ID: ${pick}` }, 400);
+    }
+  }
+
+  // Enforce 2 picks per period
+  const periodCounts = new Map<string, number>();
+  for (const pick of picks) {
+    const period = eventMap.get(pick)!.period;
+    periodCounts.set(period, (periodCounts.get(period) || 0) + 1);
+  }
+  for (const [period, count] of periodCounts) {
+    if (count !== MAX_PICKS_PER_PERIOD) {
+      return c.json({ error: `Exactly ${MAX_PICKS_PER_PERIOD} picks required per period (${period} has ${count})` }, 400);
     }
   }
 

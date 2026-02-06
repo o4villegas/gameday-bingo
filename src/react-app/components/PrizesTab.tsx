@@ -1,6 +1,6 @@
 import type { Player, EventState } from "../../shared/types";
-import { TIERS_ORDER, TIER_CONFIG, MAX_PICKS } from "../../shared/constants";
-import { getPlayerPrizes } from "../../shared/prizes";
+import { MAX_PICKS } from "../../shared/constants";
+import { rankPlayers } from "../../shared/prizes";
 import { PlayerCard } from "./PlayerCard";
 
 interface PrizesTabProps {
@@ -9,9 +9,7 @@ interface PrizesTabProps {
 }
 
 export function PrizesTab({ players, eventState }: PrizesTabProps) {
-  const leaderboard = players
-    .map((p) => getPlayerPrizes(p, eventState))
-    .sort((a, b) => b.correctCount - a.correctCount || a.ts - b.ts);
+  const leaderboard = rankPlayers(players, eventState);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
@@ -20,27 +18,33 @@ export function PrizesTab({ players, eventState }: PrizesTabProps) {
         <div className="font-heading text-xs tracking-[3px] text-white/30 mb-3 text-center">
           HOW PRIZES WORK
         </div>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {TIERS_ORDER.map((t) => (
-            <div
-              key={t}
-              className="border rounded-lg px-3 py-2.5 text-center"
-              style={{ background: TIER_CONFIG[t].bg, borderColor: TIER_CONFIG[t].border }}
-            >
-              <div
-                className="font-heading text-[0.6875rem] tracking-[2px] font-bold"
-                style={{ color: TIER_CONFIG[t].color }}
-              >
-                {TIER_CONFIG[t].emoji} {TIER_CONFIG[t].label}
-              </div>
-              <div className="text-xs text-white font-semibold mt-1">
-                {TIER_CONFIG[t].prize}
-              </div>
-            </div>
-          ))}
+
+        {/* In-game prizes */}
+        <div className="border rounded-lg px-4 py-3 mb-3 bg-primary/5 border-primary/20">
+          <div className="font-heading text-xs tracking-[2px] text-primary font-bold mb-2">
+            {"\u{1F525}"} IN-GAME PRIZES (QUARTERS)
+          </div>
+          <div className="text-[0.6875rem] text-white/70 leading-relaxed">
+            For each game quarter (Q1, Q2, Q3, Q4), if ANY of your picks in that quarter hit, you earn 1× $3 YCI shell.
+            <br />
+            <span className="text-white/50">Max: 4 shells ($12 value)</span>
+          </div>
         </div>
+
+        {/* Final prizes */}
+        <div className="border rounded-lg px-4 py-3 bg-accent-green/5 border-accent-green/20">
+          <div className="font-heading text-xs tracking-[2px] text-accent-green font-bold mb-2">
+            {"\u{1F3C6}"} FINAL PRIZES (TOP 3)
+          </div>
+          <div className="text-[0.6875rem] text-white/70 leading-relaxed space-y-1">
+            <div><span className="text-accent-green font-bold">1st place:</span> 20% off your tab</div>
+            <div><span className="text-accent-green font-bold">2nd place:</span> 15% off your tab</div>
+            <div><span className="text-accent-green font-bold">3rd place:</span> 10% off your tab</div>
+          </div>
+        </div>
+
         <div className="text-[0.6875rem] text-white/30 text-center mt-2 font-heading tracking-[1px]">
-          {MAX_PICKS} PICKS &middot; PRIZES STACK &middot; MAX 50% OFF TAB
+          {MAX_PICKS} PICKS &middot; PRIZES STACK &middot; TIEBREAKER: EARLIER SUBMISSION
         </div>
       </div>
 
@@ -54,8 +58,8 @@ export function PrizesTab({ players, eventState }: PrizesTabProps) {
             No players yet. Be the first!
           </div>
         ) : (
-          leaderboard.map((player, i) => (
-            <PlayerCard key={player.name + player.ts} player={player} rank={i} eventState={eventState} />
+          leaderboard.map((player) => (
+            <PlayerCard key={player.name + player.ts} player={player} eventState={eventState} />
           ))
         )}
       </div>

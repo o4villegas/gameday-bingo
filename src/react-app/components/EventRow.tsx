@@ -5,12 +5,12 @@ interface EventRowProps {
   event: GameEvent;
   picked: boolean;
   disabled: boolean;
-  tierColor: string;
-  tierBg: string;
+  periodColor: string;
+  periodBg: string;
   onToggle: () => void;
 }
 
-export function EventRow({ event, picked, disabled, tierColor, tierBg, onToggle }: EventRowProps) {
+export function EventRow({ event, picked, disabled, periodColor, periodBg, onToggle }: EventRowProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -36,11 +36,11 @@ export function EventRow({ event, picked, disabled, tierColor, tierBg, onToggle 
       )}
       onClick={() => !disabled && onToggle()}
       onKeyDown={handleKeyDown}
-      style={{ background: picked ? tierBg : undefined }}
+      style={{ background: picked ? periodBg : undefined }}
     >
       <div
         className={cn("flex-1 text-sm text-foreground truncate")}
-        style={{ color: picked ? tierColor : undefined, fontWeight: picked ? 600 : 400 }}
+        style={{ color: picked ? periodColor : undefined, fontWeight: picked ? 600 : 400 }}
       >
         {event.name}
       </div>
@@ -52,8 +52,8 @@ export function EventRow({ event, picked, disabled, tierColor, tierBg, onToggle 
           "transition-all duration-150 ease-in-out"
         )}
         style={{
-          borderColor: picked ? tierColor : "rgba(255,255,255,0.15)",
-          background: picked ? tierColor : "transparent",
+          borderColor: picked ? periodColor : "rgba(255,255,255,0.15)",
+          background: picked ? periodColor : "transparent",
         }}
       >
         {picked && "\u2713"}

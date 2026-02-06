@@ -1,5 +1,5 @@
 import type { EventState } from "../../shared/types";
-import { EVENTS, TIERS_ORDER, TIER_CONFIG } from "../../shared/constants";
+import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG } from "../../shared/constants";
 import { LiveEventRow } from "./LiveEventRow";
 
 interface LiveBoardProps {
@@ -22,18 +22,18 @@ export function LiveBoard({ eventState, totalHits }: LiveBoardProps) {
       </div>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-4 lg:px-4">
-        {TIERS_ORDER.map((tier) => {
-          const config = TIER_CONFIG[tier];
-          const events = EVENTS.filter((e) => e.tier === tier);
+        {PERIODS_ORDER.map((period) => {
+          const config = PERIOD_CONFIG[period];
+          const events = EVENTS.filter((e) => e.period === period);
           const hitCount = events.filter((e) => eventState[e.id]).length;
 
           return (
-            <div key={tier} className="mx-4 my-2.5 lg:mx-0">
+            <div key={period} className="mx-4 my-2.5 lg:mx-0">
               <div
                 className="font-heading text-xs font-semibold tracking-[2px] py-2 pb-1 border-b mb-1 flex justify-between items-center"
                 style={{ color: config.color, borderBottomColor: config.border }}
               >
-                <span>{config.emoji} {config.label} &mdash; {config.prize}</span>
+                <span>{config.emoji} {config.label}</span>
                 {hitCount > 0 && (
                   <span className="bg-accent-green text-black rounded-[10px] px-2 py-px text-[0.625rem] font-bold">
                     {hitCount} HIT

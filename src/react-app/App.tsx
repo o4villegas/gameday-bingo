@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import type { TabId, Player, EventState } from "../shared/types";
-import { EVENTS, TIERS_ORDER, TIER_CONFIG, MAX_PICKS, MAX_NAME_LENGTH, POLL_INTERVAL_MS } from "../shared/constants";
+import type { TabId, Player, EventState, VerificationResult, Period } from "../shared/types";
+import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG, MAX_PICKS, MAX_PICKS_PER_PERIOD, MAX_NAME_LENGTH, POLL_INTERVAL_MS } from "../shared/constants";
 import {
   fetchEvents,
   fetchPlayers,
@@ -9,6 +9,9 @@ import {
   toggleEvent as apiToggleEvent,
   removePlayer as apiRemovePlayer,
   resetGame as apiResetGame,
+  triggerVerification as apiTriggerVerification,
+  approveVerification as apiApproveVerification,
+  dismissVerification as apiDismissVerification,
 } from "./api/client";
 import { usePolling } from "./hooks/usePolling";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -18,13 +21,15 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Header } from "./components/Header";
 import { PickCounter } from "./components/PickCounter";
-import { TierSection } from "./components/TierSection";
+import { PeriodSection } from "./components/PeriodSection";
 import { LockedScreen } from "./components/LockedScreen";
 import { LiveBoard } from "./components/LiveBoard";
 import { PrizesTab } from "./components/PrizesTab";
 import { AdminTab } from "./components/AdminTab";
+import { RulesPage } from "./components/RulesPage";
 
 const TAB_ITEMS: { id: TabId; label: string; icon: string }[] = [
+  { id: "rules", label: "RULES", icon: "\u{1F4CB}" },
   { id: "picks", label: "PICKS", icon: "\u270D\uFE0F" },
   { id: "live", label: "LIVE", icon: "\u{1F4E1}" },
   { id: "prizes", label: "PRIZES", icon: "\u{1F3C6}" },
@@ -36,7 +41,9 @@ function App() {
   const [eventState, setEventState] = useState<EventState>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useHashRoute("picks");
+  const [tab, setTab] = useHashRoute(
+    localStorage.getItem("sb-submitted") === "true" ? "live" : "rules"
+  );
   const [submitted, setSubmitted] = useState(
     () => localStorage.getItem("sb-submitted") === "true"
   );
@@ -46,6 +53,8 @@ function App() {
   const [adminAuth, setAdminAuth] = useState(false);
   const [adminCode, setAdminCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   const hasLoadedRef = useRef(false);
 
@@ -79,6 +88,12 @@ function App() {
     setSelectedPicks((prev) => {
       if (prev.includes(id)) return prev.filter((p) => p !== id);
       if (prev.length >= MAX_PICKS) return prev;
+      const event = EVENTS.find((e) => e.id === id);
+      if (!event) return prev;
+      const periodCount = prev.filter(
+        (p) => EVENTS.find((e) => e.id === p)?.period === event.period
+      ).length;
+      if (periodCount >= MAX_PICKS_PER_PERIOD) return prev;
       return [...prev, id];
     });
   };
@@ -141,6 +156,7 @@ function App() {
       await apiResetGame(adminCode);
       setEventState({});
       setPlayers([]);
+      setVerificationResult(null);
       toast.success("Game reset!");
     } catch {
       toast.error("Error resetting game");
@@ -152,12 +168,52 @@ function App() {
     setAdminCode(code);
   };
 
+  const handleVerifyPeriod = async (period: Period, manualText?: string) => {
+    setVerificationLoading(true);
+    try {
+      const result = await apiTriggerVerification(period, adminCode, manualText);
+      setVerificationResult(result);
+      toast.success(`AI verification complete for ${period}`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Verification failed"
+      );
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleApproveVerification = async () => {
+    try {
+      const updatedEvents = await apiApproveVerification(adminCode);
+      setEventState(updatedEvents);
+      setVerificationResult(null);
+      toast.success("Verification results applied!");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to approve"
+      );
+    }
+  };
+
+  const handleDismissVerification = async () => {
+    try {
+      await apiDismissVerification(adminCode);
+      setVerificationResult(null);
+      toast.success("Verification dismissed");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to dismiss"
+      );
+    }
+  };
+
   const totalHits = Object.values(eventState).filter(Boolean).length;
 
-  const tierGroups = TIERS_ORDER.map((tier) => ({
-    tier,
-    config: TIER_CONFIG[tier],
-    events: EVENTS.filter((e) => e.tier === tier),
+  const periodGroups = PERIODS_ORDER.map((period) => ({
+    period,
+    config: PERIOD_CONFIG[period],
+    events: EVENTS.filter((e) => e.period === period),
   }));
 
   if (loading) {
@@ -205,6 +261,13 @@ function App() {
 
         <div className="max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto">
           <TabsContent
+            value="rules"
+            className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
+          >
+            <RulesPage onGoToPicks={() => setTab("picks")} />
+          </TabsContent>
+
+          <TabsContent
             value="picks"
             className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
           >
@@ -242,12 +305,12 @@ function App() {
                   </div>
                 </div>
 
-                <PickCounter selectedCount={selectedPicks.length} />
+                <PickCounter selectedPicks={selectedPicks} />
 
-                {tierGroups.map(({ tier, config, events }) => (
-                  <TierSection
-                    key={tier}
-                    tier={tier}
+                {periodGroups.map(({ period, config, events }) => (
+                  <PeriodSection
+                    key={period}
+                    period={period}
                     config={config}
                     events={events}
                     selectedPicks={selectedPicks}
@@ -302,6 +365,11 @@ function App() {
               onToggleEvent={handleToggleEvent}
               onRemovePlayer={handleRemovePlayer}
               onReset={handleReset}
+              verificationResult={verificationResult}
+              verificationLoading={verificationLoading}
+              onVerifyPeriod={handleVerifyPeriod}
+              onApproveVerification={handleApproveVerification}
+              onDismissVerification={handleDismissVerification}
             />
           </TabsContent>
         </div>

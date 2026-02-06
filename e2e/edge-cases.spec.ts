@@ -59,8 +59,11 @@ async function mockAPIs(
       return route.fulfill({ status: 200, json: { success: true } });
     return route.continue();
   });
+
+  await page.route("**/api/verify**", (route) => route.fulfill({ json: {} }));
 }
 
+/** Navigate fresh: clears localStorage and lands on the default "rules" tab. */
 async function freshPage(page: Page) {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -68,13 +71,29 @@ async function freshPage(page: Page) {
   await page.waitForSelector('[data-slot="tabs"]');
 }
 
-/** Select exactly 5 events from different tiers (all tiers start expanded). */
-async function selectFiveEvents(page: Page) {
-  await page.getByText("Punt Return Touchdown").click();
+/** Navigate fresh and switch to the PICKS tab (default is now "rules"). */
+async function freshPicksPage(page: Page) {
+  await freshPage(page);
+  await page.getByRole("tab", { name: /PICKS/ }).click();
+}
+
+/** Select exactly 10 events: 2 per period (Q1, Q2, Q3, Q4, FG). */
+async function selectTenEvents(page: Page) {
+  // Q1 (2)
   await page.getByText("Opening Kickoff Returned for TD").click();
+  await page.getByText("First Score Is a Field Goal").click();
+  // Q2 (2)
+  await page.getByText("Pick-Six Thrown in Q2").click();
+  await page.getByText("50+ Yard Field Goal Made in Q2").click();
+  // Q3 (2)
+  await page.getByText("First Drive of Second Half Scores TD").click();
+  await page.getByText("No Points Scored in Q3").click();
+  // Q4 (2)
+  await page.getByText("Two-Point Conversion Attempted").click();
   await page.getByText("Game Goes to Overtime").click();
-  await page.getByText("Successful Onside Kick").click();
-  await page.getByText("Blocked Punt/FG Returned for TD").click();
+  // FG (2)
+  await page.getByText("Gatorade Bath Color Is ORANGE").click();
+  await page.getByText("Final Margin Exactly 3 Points").click();
 }
 
 // ================================================================
@@ -159,13 +178,17 @@ test.describe("Rapid Double Submit Prevention", () => {
       return route.continue();
     });
 
-    await freshPage(page);
+    await page.route("**/api/verify**", (route) =>
+      route.fulfill({ json: {} })
+    );
+
+    await freshPicksPage(page);
 
     // Fill form
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
-    await selectFiveEvents(page);
+    await selectTenEvents(page);
 
-    // Click submit — button changes to "SUBMITTING..." and becomes disabled
+    // Click submit -- button changes to "SUBMITTING..." and becomes disabled
     const submitBtn = page.getByRole("button", { name: /LOCK IN PICKS/ });
     await submitBtn.click();
 
@@ -174,7 +197,7 @@ test.describe("Rapid Double Submit Prevention", () => {
     await expect(submittingBtn).toBeVisible({ timeout: 2000 });
     await expect(submittingBtn).toBeDisabled();
 
-    // Try to click the disabled button via force — should NOT fire another POST
+    // Try to click the disabled button via force -- should NOT fire another POST
     await submittingBtn.click({ force: true });
 
     // Wait for the submission to complete
@@ -220,9 +243,13 @@ test.describe("Rapid Double Submit Prevention", () => {
       return route.continue();
     });
 
-    await freshPage(page);
+    await page.route("**/api/verify**", (route) =>
+      route.fulfill({ json: {} })
+    );
+
+    await freshPicksPage(page);
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
-    await selectFiveEvents(page);
+    await selectTenEvents(page);
 
     await page.getByRole("button", { name: /LOCK IN PICKS/ }).click();
 
@@ -230,54 +257,122 @@ test.describe("Rapid Double Submit Prevention", () => {
     await expect(page.getByText("SUBMITTING...")).toBeVisible({
       timeout: 2000,
     });
-    const submitBtn = page.getByRole("button").filter({ hasText: "SUBMITTING" });
+    const submitBtn = page
+      .getByRole("button")
+      .filter({ hasText: "SUBMITTING" });
     await expect(submitBtn).toBeDisabled();
   });
 });
 
 // ================================================================
-// 3. 6TH PICK REJECTION
+// 3. 11TH PICK TOTAL REJECTION
 // ================================================================
-test.describe("6th Pick Rejection", () => {
-  test("selecting a 6th event should be rejected and count stays at 5/5", async ({
+test.describe("11th Pick Total Rejection", () => {
+  test("selecting an 11th event should be rejected and count stays at 10/10", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Select 5 events
-    await selectFiveEvents(page);
-    await expect(page.getByText("5/5")).toBeVisible();
+    // Select 10 events (2 per period)
+    await selectTenEvents(page);
+    await expect(page.getByText("10/10")).toBeVisible();
     await expect(page.getByText(/READY TO SUBMIT/)).toBeVisible();
 
-    // Try to select a 6th event (from a different tier)
-    await page.getByText("Safety Scored").click();
+    // Try to select an 11th event (from Q1, which already has 2)
+    await page.getByText("No Points Scored in Q1 (0-0)").click();
 
-    // Count should still be 5/5
-    await expect(page.getByText("5/5")).toBeVisible();
+    // Count should still be 10/10
+    await expect(page.getByText("10/10")).toBeVisible();
     await expect(page.getByText(/READY TO SUBMIT/)).toBeVisible();
 
-    // The 6th event checkbox should NOT be checked
-    const safetyCheckbox = page
+    // The 11th event checkbox should NOT be checked
+    const extraCheckbox = page
       .locator('[role="checkbox"]')
-      .filter({ hasText: "Safety Scored" });
-    await expect(safetyCheckbox).toHaveAttribute("aria-checked", "false");
+      .filter({ hasText: "No Points Scored in Q1 (0-0)" });
+    await expect(extraCheckbox).toHaveAttribute("aria-checked", "false");
   });
 
-  test("6th pick event row should have reduced opacity (disabled state)", async ({
+  test("11th pick event row should have reduced opacity (disabled state)", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Select 5 events
-    await selectFiveEvents(page);
+    // Select 10 events (2 per period)
+    await selectTenEvents(page);
 
     // Unselected events should have disabled styling (opacity-35 class)
-    const safetyCheckbox = page
+    const extraCheckbox = page
       .locator('[role="checkbox"]')
-      .filter({ hasText: "Safety Scored" });
-    await expect(safetyCheckbox).toHaveClass(/opacity-35/);
+      .filter({ hasText: "No Points Scored in Q1 (0-0)" });
+    await expect(extraCheckbox).toHaveClass(/opacity-35/);
+  });
+});
+
+// ================================================================
+// 3b. 3RD PICK PER PERIOD REJECTION
+// ================================================================
+test.describe("3rd Pick Per Period Rejection", () => {
+  test("selecting a 3rd event in the same period should be rejected", async ({
+    page,
+  }) => {
+    await mockAPIs(page);
+    await freshPicksPage(page);
+
+    // Select 2 from Q3
+    await page.getByText("First Drive of Second Half Scores TD").click();
+    await page.getByText("No Points Scored in Q3").click();
+
+    // Try a 3rd Q3 event -- should be rejected
+    await page.getByText("Lead Changes Hands in Q3").click();
+
+    // The 3rd event's checkbox should NOT be checked
+    const thirdCheckbox = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "Lead Changes Hands in Q3" });
+    await expect(thirdCheckbox).toHaveAttribute("aria-checked", "false");
+
+    // The first two should still be checked
+    const firstCheckbox = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "First Drive of Second Half Scores TD" });
+    await expect(firstCheckbox).toHaveAttribute("aria-checked", "true");
+
+    const secondCheckbox = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "No Points Scored in Q3" });
+    await expect(secondCheckbox).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("3rd pick in a period should be disabled while other periods remain selectable", async ({
+    page,
+  }) => {
+    await mockAPIs(page);
+    await freshPicksPage(page);
+
+    // Fill Q3 to its 2-pick cap
+    await page.getByText("First Drive of Second Half Scores TD").click();
+    await page.getByText("No Points Scored in Q3").click();
+
+    // The remaining Q3 events should have disabled styling
+    const thirdQ3Event = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "Lead Changes Hands in Q3" });
+    await expect(thirdQ3Event).toHaveClass(/opacity-35/);
+
+    // But Q1 events should still be selectable (not disabled)
+    const q1Event = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "Opening Kickoff Returned for TD" });
+    await expect(q1Event).not.toHaveClass(/opacity-35/);
+
+    // Verify we can still select from other periods
+    await page.getByText("Opening Kickoff Returned for TD").click();
+    const q1Checkbox = page
+      .locator('[role="checkbox"]')
+      .filter({ hasText: "Opening Kickoff Returned for TD" });
+    await expect(q1Checkbox).toHaveAttribute("aria-checked", "true");
   });
 });
 
@@ -307,20 +402,26 @@ test.describe("Network Failure During Submission", () => {
       return route.continue();
     });
 
-    await freshPage(page);
+    await page.route("**/api/verify**", (route) =>
+      route.fulfill({ json: {} })
+    );
+
+    await freshPicksPage(page);
 
     // Fill form
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
     await page
       .getByPlaceholder("e.g. Chiefs 27, Eagles 24")
       .fill("Chiefs 28, Eagles 21");
-    await selectFiveEvents(page);
+    await selectTenEvents(page);
 
     // Submit
     await page.getByRole("button", { name: /LOCK IN PICKS/ }).click();
 
     // Error toast should appear
-    await expect(page.getByText(/Internal Server Error|Error saving picks/)).toBeVisible({
+    await expect(
+      page.getByText(/Internal Server Error|Error saving picks/)
+    ).toBeVisible({
       timeout: 3000,
     });
 
@@ -334,8 +435,8 @@ test.describe("Network Failure During Submission", () => {
       "TestPlayer"
     );
 
-    // Picks should still be selected (5/5)
-    await expect(page.getByText("5/5")).toBeVisible();
+    // Picks should still be selected (10/10)
+    await expect(page.getByText("10/10")).toBeVisible();
   });
 
   test("user can retry after network failure", async ({ page }) => {
@@ -375,13 +476,19 @@ test.describe("Network Failure During Submission", () => {
       return route.continue();
     });
 
-    await freshPage(page);
+    await page.route("**/api/verify**", (route) =>
+      route.fulfill({ json: {} })
+    );
+
+    await freshPicksPage(page);
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
-    await selectFiveEvents(page);
+    await selectTenEvents(page);
 
     // First attempt - fails
     await page.getByRole("button", { name: /LOCK IN PICKS/ }).click();
-    await expect(page.getByText(/Server down|Error saving picks/)).toBeVisible({
+    await expect(
+      page.getByText(/Server down|Error saving picks/)
+    ).toBeVisible({
       timeout: 3000,
     });
 
@@ -447,6 +554,10 @@ test.describe("Rapid Admin Event Toggle", () => {
       return route.continue();
     });
 
+    await page.route("**/api/verify**", (route) =>
+      route.fulfill({ json: {} })
+    );
+
     await freshPage(page);
 
     // Authenticate as admin
@@ -455,7 +566,7 @@ test.describe("Rapid Admin Event Toggle", () => {
     await page.getByRole("button", { name: "ENTER" }).click();
     await expect(page.getByText("EVENT CONTROLS")).toBeVisible();
 
-    // Find the first switch (e.g., Punt Return Touchdown)
+    // Find the first switch
     const firstSwitch = page.getByRole("switch").first();
 
     // Initially off
@@ -481,16 +592,16 @@ test.describe("Rapid Admin Event Toggle", () => {
 // 6. HASH ROUTING EDGE CASES
 // ================================================================
 test.describe("Hash Routing Edge Cases", () => {
-  test("invalid hash defaults to PICKS tab", async ({ page }) => {
+  test("invalid hash defaults to RULES tab", async ({ page }) => {
     await mockAPIs(page);
     await page.goto("/#invalid");
     await page.evaluate(() => localStorage.clear());
     await page.goto("/#invalid");
     await page.waitForSelector('[data-slot="tabs"]');
 
-    // The invalid hash should be ignored, defaulting to "picks"
-    const picksTab = page.getByRole("tab", { name: /PICKS/ });
-    await expect(picksTab).toHaveAttribute("data-state", "active");
+    // The invalid hash should be ignored, defaulting to "rules"
+    const rulesTab = page.getByRole("tab", { name: /RULES/ });
+    await expect(rulesTab).toHaveAttribute("data-state", "active");
   });
 
   test("navigating to /#admin directly shows admin login", async ({
@@ -509,7 +620,7 @@ test.describe("Hash Routing Edge Cases", () => {
     await mockAPIs(page);
     await freshPage(page);
 
-    // Navigate: PICKS -> LIVE -> PRIZES
+    // Navigate: RULES -> LIVE -> PRIZES
     await page.getByRole("tab", { name: /LIVE/ }).click();
     await expect(page).toHaveURL(/#live/);
     await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
@@ -544,17 +655,22 @@ test.describe("Long Player Name", () => {
         {
           name: longName,
           picks: [
-            "t4_overtime",
-            "t2_safety",
-            "t1_pick_six",
-            "t1_blowout",
-            "t3_blocked_punt",
+            "q1_opening_kick_td",
+            "q1_first_score_fg",
+            "q2_pick_six",
+            "q2_50yd_fg",
+            "q3_first_drive_td",
+            "q3_no_points",
+            "q4_2pt_attempted",
+            "q4_overtime",
+            "fg_gatorade_orange",
+            "fg_margin_3",
           ],
           tiebreaker: "Chiefs 28, Eagles 21",
           ts: 1000,
         },
       ],
-      events: { t4_overtime: true },
+      events: { q1_opening_kick_td: true },
     });
 
     await freshPage(page);
@@ -577,15 +693,15 @@ test.describe("Long Player Name", () => {
 // 8. FORM VALIDATION EDGE CASES
 // ================================================================
 test.describe("Form Validation Edge Cases", () => {
-  test("whitespace-only name triggers error toast on submit attempt", async ({
+  test("whitespace-only name triggers disabled submit button", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
     // Enter whitespace-only name
     await page.getByPlaceholder("Enter your name").fill("   ");
-    await selectFiveEvents(page);
+    await selectTenEvents(page);
 
     // canSubmit checks !!playerName.trim(), so button should be disabled
     // because trim of "   " is "" which is falsy.
@@ -595,45 +711,55 @@ test.describe("Form Validation Edge Cases", () => {
 
   test("name with no picks keeps submit button disabled", async ({ page }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
     // Enter name but select 0 picks
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
 
     const submitBtn = page.getByRole("button", { name: /LOCK IN PICKS/ });
     await expect(submitBtn).toBeDisabled();
-    await expect(page.getByText("0/5")).toBeVisible();
+    await expect(page.getByText("0/10")).toBeVisible();
   });
 
-  test("name with only 4 picks keeps submit button disabled", async ({
+  test("name with only 9 picks keeps submit button disabled", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
     await page.getByPlaceholder("Enter your name").fill("TestPlayer");
 
-    // Select only 4 events
-    await page.getByText("Punt Return Touchdown").click();
+    // Select 9 events: 2 from Q1, Q2, Q3, Q4 (8 total) + 1 from FG (9 total)
+    // Q1 (2)
     await page.getByText("Opening Kickoff Returned for TD").click();
+    await page.getByText("First Score Is a Field Goal").click();
+    // Q2 (2)
+    await page.getByText("Pick-Six Thrown in Q2").click();
+    await page.getByText("50+ Yard Field Goal Made in Q2").click();
+    // Q3 (2)
+    await page.getByText("First Drive of Second Half Scores TD").click();
+    await page.getByText("No Points Scored in Q3").click();
+    // Q4 (2)
+    await page.getByText("Two-Point Conversion Attempted").click();
     await page.getByText("Game Goes to Overtime").click();
-    await page.getByText("Successful Onside Kick").click();
+    // FG (1 -- intentionally incomplete)
+    await page.getByText("Gatorade Bath Color Is ORANGE").click();
 
-    await expect(page.getByText("4/5")).toBeVisible();
+    await expect(page.getByText("9/10")).toBeVisible();
 
     const submitBtn = page.getByRole("button", { name: /LOCK IN PICKS/ });
     await expect(submitBtn).toBeDisabled();
   });
 
-  test("empty name with 5 picks keeps submit button disabled", async ({
+  test("empty name with 10 picks keeps submit button disabled", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Do not fill name, but select 5 picks
-    await selectFiveEvents(page);
-    await expect(page.getByText("5/5")).toBeVisible();
+    // Do not fill name, but select 10 picks
+    await selectTenEvents(page);
+    await expect(page.getByText("10/10")).toBeVisible();
 
     const submitBtn = page.getByRole("button", { name: /LOCK IN PICKS/ });
     await expect(submitBtn).toBeDisabled();
@@ -641,80 +767,83 @@ test.describe("Form Validation Edge Cases", () => {
 });
 
 // ================================================================
-// 9. TIER SECTION COLLAPSE/EXPAND
+// 9. PERIOD SECTION COLLAPSE/EXPAND
 // ================================================================
-test.describe("Tier Section Collapse/Expand", () => {
-  test("collapsing a tier hides its events", async ({ page }) => {
+test.describe("Period Section Collapse/Expand", () => {
+  test("collapsing a period hides its events", async ({ page }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Tier 4 events should be visible initially (collapsed=false)
-    await expect(page.getByText("Punt Return Touchdown")).toBeVisible();
+    // Q1 events should be visible initially (collapsed=false)
+    await expect(
+      page.getByText("Opening Kickoff Returned for TD")
+    ).toBeVisible();
 
-    // Click the Tier 4 header to collapse it
-    const tier4Button = page
+    // Click the 1ST QUARTER header to collapse it
+    const q1Button = page
       .locator("button[aria-expanded]")
-      .filter({ hasText: "TIER 4" });
-    await tier4Button.click();
+      .filter({ hasText: "1ST QUARTER" });
+    await q1Button.click();
 
     // Events inside should now be hidden
-    await expect(page.getByText("Punt Return Touchdown")).not.toBeVisible();
     await expect(
       page.getByText("Opening Kickoff Returned for TD")
     ).not.toBeVisible();
+    await expect(
+      page.getByText("Safety on First Offensive Play")
+    ).not.toBeVisible();
 
     // aria-expanded should be false
-    await expect(tier4Button).toHaveAttribute("aria-expanded", "false");
+    await expect(q1Button).toHaveAttribute("aria-expanded", "false");
   });
 
   test("pick is preserved after collapse and expand", async ({ page }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Select an event in Tier 4
-    await page.getByText("Punt Return Touchdown").click();
-    await expect(page.getByText("1/5")).toBeVisible();
+    // Select an event in Q1
+    await page.getByText("Opening Kickoff Returned for TD").click();
 
     // Verify it is checked
-    const puntCheckbox = page
+    const q1Checkbox = page
       .locator('[role="checkbox"]')
-      .filter({ hasText: "Punt Return Touchdown" });
-    await expect(puntCheckbox).toHaveAttribute("aria-checked", "true");
+      .filter({ hasText: "Opening Kickoff Returned for TD" });
+    await expect(q1Checkbox).toHaveAttribute("aria-checked", "true");
 
-    // Collapse Tier 4
-    const tier4Button = page
+    // Collapse 1ST QUARTER
+    const q1Button = page
       .locator("button[aria-expanded]")
-      .filter({ hasText: "TIER 4" });
-    await tier4Button.click();
-    await expect(page.getByText("Punt Return Touchdown")).not.toBeVisible();
+      .filter({ hasText: "1ST QUARTER" });
+    await q1Button.click();
+    await expect(
+      page.getByText("Opening Kickoff Returned for TD")
+    ).not.toBeVisible();
 
-    // Counter should still show 1/5 while collapsed
-    await expect(page.getByText("1/5")).toBeVisible();
-
-    // Expand Tier 4 again
-    await tier4Button.click();
-    await expect(page.getByText("Punt Return Touchdown")).toBeVisible();
+    // Expand 1ST QUARTER again
+    await q1Button.click();
+    await expect(
+      page.getByText("Opening Kickoff Returned for TD")
+    ).toBeVisible();
 
     // The pick should still be selected
-    await expect(puntCheckbox).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByText("1/5")).toBeVisible();
+    await expect(q1Checkbox).toHaveAttribute("aria-checked", "true");
   });
 
-  test("tier badge shows count of selected picks within tier", async ({
+  test("period badge shows count of selected picks within period", async ({
     page,
   }) => {
     await mockAPIs(page);
-    await freshPage(page);
+    await freshPicksPage(page);
 
-    // Select two Tier 4 events
-    await page.getByText("Punt Return Touchdown").click();
+    // Select two Q1 events
     await page.getByText("Opening Kickoff Returned for TD").click();
+    await page.getByText("First Score Is a Field Goal").click();
 
-    // The Tier 4 header should show a badge with "2"
-    const tier4Button = page
+    // The 1ST QUARTER header should show a badge with "2"
+    const q1Button = page
       .locator("button[aria-expanded]")
-      .filter({ hasText: "TIER 4" });
-    await expect(tier4Button.getByText("2")).toBeVisible();
+      .filter({ hasText: "1ST QUARTER" });
+    await expect(q1Button.getByText("2")).toBeVisible();
   });
 });
 
