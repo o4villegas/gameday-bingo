@@ -247,14 +247,27 @@ describe("AdminEventRow", () => {
 // ===== LockedScreen =====
 describe("LockedScreen", () => {
   it("renders locked message", () => {
-    render(<LockedScreen onGoToLive={() => {}} />);
+    render(<LockedScreen onGoToLive={() => {}} userPicks={[]} eventState={{}} />);
     expect(screen.getByText("PICKS LOCKED IN")).toBeInTheDocument();
   });
 
   it("calls onGoToLive when link clicked", () => {
     const handler = vi.fn();
-    render(<LockedScreen onGoToLive={handler} />);
+    render(<LockedScreen onGoToLive={handler} userPicks={[]} eventState={{}} />);
     fireEvent.click(screen.getByText("Live Board"));
     expect(handler).toHaveBeenCalled();
+  });
+
+  it("renders pick summary with hit/miss status", () => {
+    render(
+      <LockedScreen
+        onGoToLive={() => {}}
+        userPicks={["q1_opening_kick_td", "q1_safety_first_play"]}
+        eventState={{ q1_opening_kick_td: true }}
+      />
+    );
+    expect(screen.getByText("1/2 HIT")).toBeInTheDocument();
+    expect(screen.getByText("Opening Kickoff Returned for TD")).toBeInTheDocument();
+    expect(screen.getByText("Safety on First Offensive Play")).toBeInTheDocument();
   });
 });

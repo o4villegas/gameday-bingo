@@ -121,7 +121,7 @@ export async function dismissVerification(
   if (!res.ok) throw new Error("Failed to dismiss");
 }
 
-export async function fetchGameLockStatus(): Promise<{ locked: boolean }> {
+export async function fetchGameLockStatus(): Promise<{ locked: boolean; periodsVerified: Period[] }> {
   const res = await fetch(`${API_BASE}/game-state`);
   if (!res.ok) throw new Error("Failed to fetch game state");
   return res.json();

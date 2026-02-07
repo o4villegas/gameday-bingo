@@ -1,4 +1,4 @@
-import type { EventState } from "../../shared/types";
+import type { EventState, Period } from "../../shared/types";
 import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG } from "../../shared/constants";
 import { LiveEventRow } from "./LiveEventRow";
 
@@ -6,9 +6,10 @@ interface LiveBoardProps {
   eventState: EventState;
   totalHits: number;
   userPicks?: string[];
+  periodsVerified?: Period[];
 }
 
-export function LiveBoard({ eventState, totalHits, userPicks = [] }: LiveBoardProps) {
+export function LiveBoard({ eventState, totalHits, userPicks = [], periodsVerified = [] }: LiveBoardProps) {
   const userHits = userPicks.filter((id) => eventState[id]).length;
 
   return (
@@ -41,7 +42,14 @@ export function LiveBoard({ eventState, totalHits, userPicks = [] }: LiveBoardPr
                 className="font-heading text-xs font-semibold tracking-[2px] py-2 pb-1 border-b mb-1 flex justify-between items-center"
                 style={{ color: config.color, borderBottomColor: config.border }}
               >
-                <span>{config.emoji} {config.label}</span>
+                <span>
+                  {config.emoji} {config.label}
+                  {periodsVerified.includes(period) && (
+                    <span className="ml-2 text-[0.5625rem] font-heading tracking-[1px] text-white/40 font-normal">
+                      {"\u2713"} VERIFIED
+                    </span>
+                  )}
+                </span>
                 {hitCount > 0 && (
                   <span className="bg-accent-green text-black rounded-[10px] px-2 py-px text-[0.625rem] font-bold">
                     {hitCount} HIT

@@ -60,6 +60,7 @@ function App() {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [gameLocked, setGameLocked] = useState(false);
+  const [periodsVerified, setPeriodsVerified] = useState<Period[]>([]);
 
   const hasLoadedRef = useRef(false);
 
@@ -83,7 +84,10 @@ function App() {
 
       // Fetch lock status independently — failure doesn't block event/player updates
       const gs = await fetchGameLockStatus().catch(() => null);
-      if (gs) setGameLocked(gs.locked);
+      if (gs) {
+        setGameLocked(gs.locked);
+        setPeriodsVerified(gs.periodsVerified ?? []);
+      }
     } catch {
       if (!hasLoadedRef.current) setLoadError(true);
     } finally {
@@ -188,6 +192,7 @@ function App() {
       setPlayers([]);
       setVerificationResult(null);
       setGameLocked(false);
+      setPeriodsVerified([]);
       toast.success("Game reset!");
     } catch {
       toast.error("Error resetting game");
@@ -309,7 +314,7 @@ function App() {
             className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
           >
             {submitted ? (
-              <LockedScreen onGoToLive={() => setTab("live")} />
+              <LockedScreen onGoToLive={() => setTab("live")} userPicks={currentUserPicks} eventState={eventState} />
             ) : gameLocked ? (
               <ClosedScreen />
             ) : (
@@ -386,7 +391,7 @@ function App() {
             value="live"
             className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
           >
-            <LiveBoard eventState={eventState} totalHits={totalHits} userPicks={currentUserPicks} />
+            <LiveBoard eventState={eventState} totalHits={totalHits} userPicks={currentUserPicks} periodsVerified={periodsVerified} />
           </TabsContent>
 
           <TabsContent

@@ -6,7 +6,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/game-state", async (c) => {
   const gameState = await getGameState(c.env.GAME_KV);
-  return c.json({ locked: gameState.locked });
+  return c.json({ locked: gameState.locked, periodsVerified: gameState.periodsVerified });
 });
 
 app.post("/lock", adminAuth, async (c) => {
