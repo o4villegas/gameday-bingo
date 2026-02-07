@@ -4,7 +4,9 @@ import type { EventState, Player, VerificationResult, Period } from "../../share
 import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG } from "../../shared/constants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AdminEventRow } from "./AdminEventRow";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -46,6 +48,7 @@ export function AdminTab({
   const [codeInput, setCodeInput] = useState("");
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>("Q1");
   const [manualText, setManualText] = useState("");
   const [showFallback, setShowFallback] = useState(false);
@@ -275,28 +278,97 @@ export function AdminTab({
             No players registered yet.
           </div>
         ) : (
-          players.map((p) => (
-            <div
-              key={p.name + p.ts}
-              className="flex justify-between items-center py-2 px-2.5 border-b border-white/[0.04]"
-            >
-              <div>
-                <span className="text-[0.8125rem] text-white">{p.name}</span>
-                <span className="text-[0.6875rem] text-muted-foreground ml-2">{p.picks.length} picks</span>
-                {p.tiebreaker && (
-                  <span className="text-[0.6875rem] text-white/15 ml-2">({p.tiebreaker})</span>
+          players.map((p) => {
+            const isExpanded = expandedPlayer === p.name;
+            const correctCount = p.picks.filter((id) => eventState[id]).length;
+
+            // Group picks by period for expanded view
+            const picksByPeriod = new Map<string, string[]>();
+            for (const period of PERIODS_ORDER) {
+              picksByPeriod.set(period, []);
+            }
+            for (const pickId of p.picks) {
+              const ev = EVENTS.find((e) => e.id === pickId);
+              if (ev && picksByPeriod.has(ev.period)) {
+                picksByPeriod.get(ev.period)!.push(pickId);
+              }
+            }
+
+            return (
+              <div key={p.name + p.ts} className="border-b border-white/[0.04]">
+                <div className="flex justify-between items-center py-2 px-2.5">
+                  <button
+                    className="flex items-center gap-1.5 text-left flex-1 min-w-0"
+                    onClick={() => setExpandedPlayer(isExpanded ? null : p.name)}
+                  >
+                    {isExpanded
+                      ? <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+                      : <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+                    }
+                    <span className="text-[0.8125rem] text-white truncate">{p.name}</span>
+                    <span className={cn(
+                      "text-[0.6875rem] font-heading shrink-0",
+                      correctCount > 0 ? "text-accent-green" : "text-muted-foreground"
+                    )}>
+                      {correctCount}/{p.picks.length}
+                    </span>
+                    {p.tiebreaker && (
+                      <span className="text-[0.6875rem] text-white/15 truncate">({p.tiebreaker})</span>
+                    )}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-destructive/60 hover:text-destructive hover:bg-destructive/10 min-h-[2.75rem] min-w-[2.75rem] shrink-0"
+                    onClick={() => setDeleteTarget(p.name)}
+                  >
+                    &times;
+                  </Button>
+                </div>
+                {isExpanded && (
+                  <div className="px-4 pb-3 space-y-1.5">
+                    {PERIODS_ORDER.map((period) => {
+                      const picks = picksByPeriod.get(period) || [];
+                      if (picks.length === 0) return null;
+                      const config = PERIOD_CONFIG[period];
+                      return (
+                        <div key={period}>
+                          <div className="text-[0.5625rem] font-heading tracking-[1.5px] mb-0.5 opacity-50" style={{ color: config.color }}>
+                            {period}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {picks.map((pickId) => {
+                              const ev = EVENTS.find((e) => e.id === pickId);
+                              if (!ev) return null;
+                              const hit = !!eventState[pickId];
+                              return (
+                                <Badge
+                                  key={pickId}
+                                  variant="outline"
+                                  className={cn(
+                                    "font-heading text-[10px] tracking-[1px]",
+                                    "px-2 py-0.5 rounded",
+                                    hit
+                                      ? "bg-accent-green/20 text-accent-green border-accent-green/30"
+                                      : "bg-white/5 text-white/40 border-border"
+                                  )}
+                                  style={{
+                                    borderColor: !hit ? config.border : undefined,
+                                  }}
+                                >
+                                  {hit ? "\u2713 " : ""}{ev.name}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="text-destructive/60 hover:text-destructive hover:bg-destructive/10 min-h-[2.75rem] min-w-[2.75rem]"
-                onClick={() => setDeleteTarget(p.name)}
-              >
-                &times;
-              </Button>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

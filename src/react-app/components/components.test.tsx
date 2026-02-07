@@ -149,29 +149,29 @@ describe("PlayerCard", () => {
   };
 
   it("renders player name and score", () => {
-    render(<PlayerCard player={player} eventState={{ q1_opening_kick_td: true, q2_pick_six: true, q4_overtime: true }} />);
+    render(<PlayerCard player={player} />);
     expect(screen.getByText(/Alice/)).toBeInTheDocument();
     expect(screen.getByText("3/10")).toBeInTheDocument();
   });
 
   it("shows rank badge for top 3", () => {
-    render(<PlayerCard player={player} eventState={{}} />);
+    render(<PlayerCard player={player} />);
     expect(screen.getByText(/1ST/)).toBeInTheDocument();
     expect(screen.getByText(/🥇/)).toBeInTheDocument();
   });
 
   it("shows quarter shells indicator", () => {
-    render(<PlayerCard player={player} eventState={{}} />);
+    render(<PlayerCard player={player} />);
     expect(screen.getByText(/2\/4 QUARTER SHELLS/)).toBeInTheDocument();
   });
 
   it("shows prizes", () => {
-    render(<PlayerCard player={player} eventState={{}} />);
+    render(<PlayerCard player={player} />);
     expect(screen.getByText(/2× \$3 YCI shells \+ 20% off tab \(1st place\)/)).toBeInTheDocument();
   });
 
   it("shows tiebreaker", () => {
-    render(<PlayerCard player={player} eventState={{}} />);
+    render(<PlayerCard player={player} />);
     expect(screen.getByText("TIEBREAKER: Chiefs 28, Eagles 24")).toBeInTheDocument();
   });
 });

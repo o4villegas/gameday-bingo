@@ -59,7 +59,7 @@ export function PrizesTab({ players, eventState }: PrizesTabProps) {
           </div>
         ) : (
           leaderboard.map((player) => (
-            <PlayerCard key={player.name + player.ts} player={player} eventState={eventState} />
+            <PlayerCard key={player.name + player.ts} player={player} />
           ))
         )}
       </div>
