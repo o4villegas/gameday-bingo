@@ -11,21 +11,10 @@ app.get("/players", async (c) => {
 });
 
 app.post("/players", async (c) => {
-  // Reject non-JSON content types to prevent CSRF via form submissions
-  const contentType = c.req.header("Content-Type") || "";
-  if (!contentType.includes("application/json")) {
-    return c.json({ error: "Content-Type must be application/json" }, 415);
-  }
-
-  let body: { name?: unknown; picks?: unknown; tiebreaker?: unknown };
+  let body: { name?: string; picks?: string[]; tiebreaker?: string };
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ error: "Invalid JSON body" }, 400);
-  }
-
-  // Reject non-object bodies (arrays, strings, etc.)
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
@@ -34,12 +23,7 @@ app.post("/players", async (c) => {
     return c.json({ error: "Submissions are closed" }, 403);
   }
 
-  // Type guard: name must be a string
-  if (typeof body.name !== "string") {
-    return c.json({ error: "Name is required" }, 400);
-  }
-
-  const name = body.name.trim();
+  const name = body.name?.trim();
   if (!name) {
     return c.json({ error: "Name is required" }, 400);
   }
@@ -76,11 +60,7 @@ app.post("/players", async (c) => {
     }
   }
 
-  // Type guard: tiebreaker must be a string if provided
-  if (body.tiebreaker !== undefined && body.tiebreaker !== null && typeof body.tiebreaker !== "string") {
-    return c.json({ error: "Tiebreaker must be a string" }, 400);
-  }
-  const trimmedTiebreaker = (typeof body.tiebreaker === "string" ? body.tiebreaker.trim() : "") || "";
+  const trimmedTiebreaker = body.tiebreaker?.trim() || "";
   if (trimmedTiebreaker.length > MAX_TIEBREAKER_LENGTH) {
     return c.json({ error: `Tiebreaker must be ${MAX_TIEBREAKER_LENGTH} characters or less` }, 400);
   }
