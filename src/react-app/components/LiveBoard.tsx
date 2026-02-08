@@ -1,4 +1,5 @@
 import type { EventState, Period } from "../../shared/types";
+import type { ConnectionHealth } from "../hooks/usePolling";
 import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG } from "../../shared/constants";
 import { LiveEventRow } from "./LiveEventRow";
 
@@ -7,17 +8,24 @@ interface LiveBoardProps {
   totalHits: number;
   userPicks?: string[];
   periodsVerified?: Period[];
+  connectionHealth?: ConnectionHealth;
 }
 
-export function LiveBoard({ eventState, totalHits, userPicks = [], periodsVerified = [] }: LiveBoardProps) {
+export function LiveBoard({ eventState, totalHits, userPicks = [], periodsVerified = [], connectionHealth }: LiveBoardProps) {
   const userHits = userPicks.filter((id) => eventState[id]).length;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
       <div className="px-4 pt-3.5 pb-1 text-center">
-        <div className="font-heading text-[0.6875rem] tracking-[3px] text-white/30">
-          {"\u{1F4E1}"} AUTO-REFRESHING
-        </div>
+        {connectionHealth?.isStale ? (
+          <div className="font-heading text-[0.6875rem] tracking-[3px] text-amber-400 animate-pulse">
+            {"\u26A0\uFE0F"} RECONNECTING...
+          </div>
+        ) : (
+          <div className="font-heading text-[0.6875rem] tracking-[3px] text-white/30">
+            {"\u{1F4E1}"} AUTO-REFRESHING
+          </div>
+        )}
         {totalHits > 0 && (
           <div className="font-heading text-lg font-bold text-accent-green mt-1.5">
             {totalHits} EVENT{totalHits !== 1 ? "S" : ""} HIT

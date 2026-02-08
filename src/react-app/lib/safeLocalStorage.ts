@@ -14,6 +14,15 @@ export function safeSetItem(key: string, value: string): void {
   }
 }
 
+export function safeSetItemVerified(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return localStorage.getItem(key) === value;
+  } catch {
+    return false;
+  }
+}
+
 export function safeRemoveItem(key: string): void {
   try {
     localStorage.removeItem(key);

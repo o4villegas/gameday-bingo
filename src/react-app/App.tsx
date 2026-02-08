@@ -21,7 +21,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { safeGetItem, safeSetItem, safeRemoveItem } from "./lib/safeLocalStorage";
+import { safeGetItem, safeSetItem, safeSetItemVerified, safeRemoveItem } from "./lib/safeLocalStorage";
 import { Header } from "./components/Header";
 import { PickCounter } from "./components/PickCounter";
 import { PeriodSection } from "./components/PeriodSection";
@@ -88,19 +88,20 @@ function App() {
         setGameLocked(gs.locked);
         setPeriodsVerified(gs.periodsVerified ?? []);
       }
-    } catch {
+    } catch (e) {
       if (!hasLoadedRef.current) setLoadError(true);
+      throw e; // Re-throw so usePolling can detect connection failures
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
+    loadData().catch(() => {}); // Error state handled inside loadData
   }, [loadData]);
 
   const shouldPoll = tab === "live" || tab === "admin" || tab === "prizes" || tab === "picks";
-  usePolling(loadData, POLL_INTERVAL_MS, shouldPoll);
+  const connectionHealth = usePolling(loadData, POLL_INTERVAL_MS, shouldPoll);
 
   const handleTabChange = (value: string) => {
     setTab(value as TabId);
@@ -137,13 +138,30 @@ function App() {
         picks: selectedPicks,
         tiebreaker: tiebreaker.trim(),
       });
-      safeSetItem("sb-submitted", "true");
+      const writeOk = safeSetItemVerified("sb-submitted", "true");
       safeSetItem("sb-submitted-name", playerName.trim().toLowerCase());
       setSubmitted(true);
-      toast.success("Picks locked in!");
+      if (writeOk) {
+        toast.success("Picks locked in!");
+      } else {
+        toast.info("Picks saved! Your browser may not remember your session after refresh.", { duration: 6000 });
+      }
       setTab("live");
-      await loadData();
+      await loadData().catch(() => {}); // Submit succeeded; refresh failure is non-critical
     } catch (err) {
+      // Auto-recover on 409: if this name already exists, treat as returning user
+      if (err instanceof Error && err.message === "Name already taken") {
+        const trimmedName = playerName.trim().toLowerCase();
+        const existingPlayer = players.find((p) => p.name.toLowerCase() === trimmedName);
+        if (existingPlayer) {
+          safeSetItem("sb-submitted", "true");
+          safeSetItem("sb-submitted-name", trimmedName);
+          setSubmitted(true);
+          toast.success("Welcome back! Your picks are already locked in.");
+          setTab("live");
+          return;
+        }
+      }
       toast.error(
         err instanceof Error ? err.message : "Error saving picks. Try again."
       );
@@ -395,7 +413,7 @@ function App() {
             value="live"
             className="data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 mt-0"
           >
-            <LiveBoard eventState={eventState} totalHits={totalHits} userPicks={currentUserPicks} periodsVerified={periodsVerified} />
+            <LiveBoard eventState={eventState} totalHits={totalHits} userPicks={currentUserPicks} periodsVerified={periodsVerified} connectionHealth={connectionHealth} />
           </TabsContent>
 
           <TabsContent
