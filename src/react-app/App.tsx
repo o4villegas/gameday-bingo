@@ -221,8 +221,12 @@ function App() {
 
   const handleApproveVerification = async () => {
     try {
+      const approvedPeriod = verificationResult?.period;
       const updatedEvents = await apiApproveVerification(adminCode);
       setEventState(updatedEvents);
+      if (approvedPeriod && !periodsVerified.includes(approvedPeriod)) {
+        setPeriodsVerified((prev) => [...prev, approvedPeriod]);
+      }
       setVerificationResult(null);
       toast.success("Verification results applied!");
     } catch (err) {

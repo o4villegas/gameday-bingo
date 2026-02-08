@@ -45,7 +45,7 @@ app.post("/verify", adminAuth, async (c) => {
     }
   }
 
-  const result = await verifyPeriod(c.env.AI, period, gameData);
+  const result = await verifyPeriod(c.env.ANTHROPIC_API_KEY, period, gameData);
 
   state.pendingApproval = result;
   await setVerificationState(c.env.GAME_KV, state);

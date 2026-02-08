@@ -18,7 +18,7 @@
 			"id": "0cadb793bbc04aefb448cf0408a39cd1"
 		}
 	],
-	"ai": {
-		"binding": "AI"
+	"limits": {
+		"cpu_ms": 60000
 	}
 }

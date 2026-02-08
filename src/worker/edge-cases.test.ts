@@ -32,15 +32,6 @@ function createMockKV(initial: Record<string, string> = {}): KVNamespace {
 }
 
 // ---------------------------------------------------------------------------
-// Mock AI binding — returns configurable responses
-// ---------------------------------------------------------------------------
-function createMockAI(response: unknown = { response: "{}" }): Ai {
-  return {
-    run: async () => response,
-  } as unknown as Ai;
-}
-
-// ---------------------------------------------------------------------------
 // Valid 10-pick set (2 per period) for reuse
 // ---------------------------------------------------------------------------
 const VALID_PICKS = [
@@ -54,10 +45,9 @@ const VALID_PICKS = [
 const ADMIN_HEADERS = { "X-Admin-Code": "kava60" };
 
 let mockKV: KVNamespace;
-let mockAI: Ai;
 
 function env() {
-  return { GAME_KV: mockKV, AI: mockAI };
+  return { GAME_KV: mockKV, ANTHROPIC_API_KEY: "test-key" };
 }
 
 function jsonPost(path: string, body: unknown, headers: Record<string, string> = {}) {
@@ -85,7 +75,6 @@ function jsonDelete(path: string, headers: Record<string, string> = {}) {
 
 beforeEach(() => {
   mockKV = createMockKV();
-  mockAI = createMockAI();
 });
 
 // =====================================================================

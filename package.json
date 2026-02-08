@@ -12,6 +12,7 @@
 		"publish": true
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.74.0",
 		"hono": "4.11.1",
 		"lucide-react": "^0.563.0",
 		"radix-ui": "^1.4.3",
