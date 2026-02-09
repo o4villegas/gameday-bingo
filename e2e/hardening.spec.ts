@@ -158,7 +158,7 @@ test.describe("Safe localStorage Wrapper", () => {
     await page.getByRole("button", { name: /LOCK IN PICKS/ }).click();
 
     // Should still navigate to live tab despite localStorage write failure
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible({ timeout: 5000 });
   });
 
   test("app loads when localStorage.removeItem throws", async ({ page }) => {

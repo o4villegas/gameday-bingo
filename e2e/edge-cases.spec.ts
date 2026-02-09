@@ -521,7 +521,7 @@ test.describe("Network Failure During Submission", () => {
 
     // Second attempt - succeeds
     await page.getByRole("button", { name: /LOCK IN PICKS/ }).click();
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible({
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible({
       timeout: 5000,
     });
 
@@ -648,7 +648,7 @@ test.describe("Hash Routing Edge Cases", () => {
     // Navigate: RULES -> LIVE -> PRIZES
     await page.getByRole("tab", { name: /LIVE/ }).click();
     await expect(page).toHaveURL(/#live/);
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible();
 
     await page.getByRole("tab", { name: /PRIZES/ }).click();
     await expect(page).toHaveURL(/#prizes/);
@@ -661,7 +661,7 @@ test.describe("Hash Routing Edge Cases", () => {
     // The LIVE tab should now be active
     const liveTab = page.getByRole("tab", { name: /LIVE/ });
     await expect(liveTab).toHaveAttribute("data-state", "active");
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible();
   });
 });
 

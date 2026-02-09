@@ -203,7 +203,7 @@ test.describe("Tab Navigation", () => {
     await mockAPIs(page);
     await freshPage(page);
     await page.getByRole("tab", { name: /LIVE/ }).click();
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible();
   });
 
   test("clicking PRIZES tab shows prizes content", async ({ page }) => {
@@ -409,7 +409,7 @@ test.describe("Picks Tab - Form", () => {
     await submitBtn.click();
 
     // Should navigate to live tab
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible({ timeout: 5000 });
   });
 
   test("after submission, picks tab shows locked screen", async ({ page }) => {
@@ -459,7 +459,7 @@ test.describe("Picks Tab - Form", () => {
     await expect(liveLink).toBeVisible();
 
     await liveLink.click();
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible();
   });
 
   test("per-period badges show in pick counter", async ({ page }) => {
@@ -512,11 +512,11 @@ test.describe("Live Tab", () => {
     await expect(overtimeRow).toBeVisible();
   });
 
-  test("shows AUTO-REFRESHING label", async ({ page }) => {
+  test("shows live status label", async ({ page }) => {
     await mockAPIs(page);
     await freshPage(page);
     await page.getByRole("tab", { name: /LIVE/ }).click();
-    await expect(page.getByText("AUTO-REFRESHING")).toBeVisible();
+    await expect(page.getByText(/CONNECTING|UPDATED \d+S AGO/)).toBeVisible();
   });
 });
 

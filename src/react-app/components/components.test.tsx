@@ -122,9 +122,18 @@ describe("LiveBoard", () => {
     expect(screen.getByText("2 EVENTS HIT")).toBeInTheDocument();
   });
 
-  it("shows AUTO-REFRESHING label", () => {
-    render(<LiveBoard eventState={{}} totalHits={0} />);
-    expect(screen.getByText(/AUTO-REFRESHING/)).toBeInTheDocument();
+  it("shows CONNECTING before first fetch, then relative timestamp after", () => {
+    const { rerender } = render(<LiveBoard eventState={{}} totalHits={0} />);
+    expect(screen.getByText(/CONNECTING/)).toBeInTheDocument();
+
+    rerender(
+      <LiveBoard
+        eventState={{}}
+        totalHits={0}
+        connectionHealth={{ lastSuccessAt: Date.now(), isStale: false }}
+      />
+    );
+    expect(screen.getByText(/UPDATED \d+S AGO/)).toBeInTheDocument();
   });
 });
 

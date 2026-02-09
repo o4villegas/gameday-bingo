@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { EventState, Period } from "../../shared/types";
 import type { ConnectionHealth } from "../hooks/usePolling";
 import { EVENTS, PERIODS_ORDER, PERIOD_CONFIG } from "../../shared/constants";
@@ -13,6 +14,20 @@ interface LiveBoardProps {
 
 export function LiveBoard({ eventState, totalHits, userPicks = [], periodsVerified = [], connectionHealth }: LiveBoardProps) {
   const userHits = userPicks.filter((id) => eventState[id]).length;
+  const [secondsAgo, setSecondsAgo] = useState<number | null>(null);
+
+  useEffect(() => {
+    const lastSuccess = connectionHealth?.lastSuccessAt;
+    if (!lastSuccess) {
+      setSecondsAgo(null);
+      return;
+    }
+    setSecondsAgo(Math.round((Date.now() - lastSuccess) / 1000));
+    const id = setInterval(() => {
+      setSecondsAgo(Math.round((Date.now() - lastSuccess) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [connectionHealth?.lastSuccessAt]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
@@ -21,9 +36,13 @@ export function LiveBoard({ eventState, totalHits, userPicks = [], periodsVerifi
           <div className="font-heading text-[0.6875rem] tracking-[3px] text-amber-400 animate-pulse">
             {"\u26A0\uFE0F"} RECONNECTING...
           </div>
+        ) : secondsAgo !== null ? (
+          <div className="font-heading text-[0.6875rem] tracking-[3px] text-white/30">
+            {"\u{1F4E1}"} LIVE &ndash; UPDATED {secondsAgo}S AGO
+          </div>
         ) : (
           <div className="font-heading text-[0.6875rem] tracking-[3px] text-white/30">
-            {"\u{1F4E1}"} AUTO-REFRESHING
+            {"\u{1F4E1}"} CONNECTING...
           </div>
         )}
         {totalHits > 0 && (
